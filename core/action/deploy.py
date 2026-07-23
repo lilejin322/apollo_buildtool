@@ -185,8 +185,8 @@ class Action(core.action.Action):
                         )
                     
                     copy_tree("{}/".format(os.path.join(
-                            process_package_path, get_config("base", "apollo_root")[1:])), 
-                        "{}/".format(get_config("base", "apollo_root")))
+                           process_package_path, "opt/apollo/neo")), 
+                       "{}/".format(get_config("base", "apollo_root")))
 
                     cmd = "sudo {}".format(postinst_in_package)
                     p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
@@ -320,15 +320,15 @@ class Action(core.action.Action):
             sub_args = sub_args + "-t"
         if with_ros_source:
             sub_args = sub_args + " -p {}".format(os.path.join(release_path, "src"))
-            
-        ret = subprocess.run(f"buildtool rosenv {sub_args}", shell=True)
-        if ret.returncode != 0:
-            exit(ret.returncode)
-
-        if os.path.exists(os.path.join(release_path, "install")):
-            subprocess.run("rsync -avr {}/ ros_ws/install/ >/dev/null".format(
-                os.path.join(release_path, "install")), shell=True)
-            with_ros_install = True
+        
+        if enable_ros:
+            ret = subprocess.run(f"buildtool rosenv {sub_args}", shell=True)
+            if ret.returncode != 0:
+                exit(ret.returncode)
+            if os.path.exists(os.path.join(release_path, "install")):
+                subprocess.run("rsync -avr {}/ ros_ws/install/ >/dev/null".format(
+                    os.path.join(release_path, "install")), shell=True)
+    #            with_ros_install = True
         
         shutil.rmtree(release_path)
 

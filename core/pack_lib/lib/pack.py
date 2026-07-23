@@ -51,8 +51,8 @@ APOLLO_PATH = get_config("base", "apollo_root") + "/"
 APOLLO_SRC = os.path.join(APOLLO_PATH, get_config("base", "source_path_prefix"))
 W_DIR = os.path.join(APOLLO_OUT, "dpkg")
 
-OUTPUT_DIR="/apollo/output"
-
+#OUTPUT_DIR="/apollo/output"
+OUTPUT_DIR = os.path.join(APOLLO_PATH , "output")
 # black list
 APOLLO_SHARE = os.path.join(APOLLO_PATH, get_config("base", "config_path_prefix"))
 APOLLO_INCLUDE = os.path.join(APOLLO_PATH, get_config("base", "include_path_prefix"))
@@ -383,12 +383,30 @@ class DebBuilder(object):
         deb_conf = self.assemble_deb_conf(conf)
         self.package_name_ver = deb_conf.name_ver
         cyberfile = self.prepare(deb_conf)
+        
+        # copy cyberfile
+        if Path(cyberfile).exists():
+            logger.info("exists")
+            copy_or_link(cyberfile, cwd + "/.deb_local/" + self.package_name_ver + ".cyberfile")
+
+        # judge /opt dir, keep physical path and docker path same
+        prepare_path = os.path.join(W_DIR, deb_conf.name_ver)
+        if not os.path.exists(os.path.join(prepare_path, "opt")):
+            os.makedirs(os.path.join(prepare_path, "opt/apollo"))
+            src_path = os.path.join(prepare_path, APOLLO_PATH[1:])
+            dest_path = os.path.join(prepare_path, "opt/apollo")
+            ret = subprocess.run(f"mv {src_path} {dest_path}", shell=True)
+            if ret.returncode != 0:
+                ErrCode.send_error(
+                    ErrCode.FileIoErr,
+                    ["can not create dir opt/apollo in {}".format(dest_path)]
+                )
+            first_level = APOLLO_PATH[1:].split('/')[0]
+            if os.path.exists(os.path.join(prepare_path, first_level)):
+                shutil.rmtree(os.path.join(prepare_path, first_level))
         self.do_pack(self.package_name_ver)
         copy_or_link(W_DIR + "/" + self.package_name_ver + 
             ".deb", cwd + "/.deb_local/" + self.package_name_ver + ".deb")
-        # copy cyberfile
-        if Path(cyberfile).exists():
-            copy_or_link(cyberfile, cwd + "/.deb_local/" + self.package_name_ver + ".cyberfile")
 
     def clean_up(self, name_ver):
         """clean up pkg file"""
@@ -412,7 +430,7 @@ class DebBuilder(object):
             logger.error("package %s.deb not prepared!" % name_ver)
             raise DebMakerError("target package content not prepared!")
         os.chdir(W_DIR)
-        shell_cmd("chmod -R a+rw {}/opt".format(name_ver))
+        shell_cmd("chmod -R 755 {}/opt".format(name_ver))
         ret = subprocess.run("dpkg-deb --build {}".format(name_ver), shell=True)
         if ret.returncode != 0:
             ErrCode.send_error(
@@ -451,13 +469,11 @@ class DebBuilder(object):
                 Path(f).unlink()
         os.chdir(deb_conf.name_ver)
         prepare_path = os.getcwd()
-
         generate_postinst(deb_conf)
         generate_other(deb_conf, "preinst", deb_conf.preinst_extend_ops)
         generate_other(deb_conf, "prerm", deb_conf.prerm_extend_ops)
         generate_other(deb_conf, "postrm", deb_conf.postrm_extend_ops)
         generate_control(deb_conf)
-
         os.makedirs("./" + APOLLO_PATH)
         os.chdir("./" + APOLLO_PATH)
 
@@ -467,9 +483,7 @@ class DebBuilder(object):
         if not deb_conf.data:
             logger.warn("no data in package %s" % deb_conf.name_ver)
             return
-
         des_prefix = "packages/" + deb_conf.module_name + "/" + deb_conf.ver
-
         cyberfiles = []
 
         for d in deb_conf.data:
@@ -477,7 +491,6 @@ class DebBuilder(object):
             des = d["des"] if "des" in d else None
             typ = d["type"] if "type" in d else "OUTPUT"
             fil = d["filter"] if "filter" in d else "*"
-
             if not (src and des):
                 logger.error("Illegal src or des in config file! \nsrc:%s\ndes:%s" % (src, des))
                 raise DebMakerError("Illegal src or des in config file!")
@@ -513,7 +526,6 @@ class DebBuilder(object):
                 shell_cmd(
                     "cd {} && find . -name '{}'|xargs -i -I@@ cp -rvnP --parents @@ {}/{}/".format(src, fil, cwd, des))
                 os.chdir(cwd)
-            
             if os.path.exists(os.path.join(des, "cyberfile.xml")):
                 cyberfiles.append(os.path.join(des, "cyberfile.xml"))
 
@@ -533,3 +545,4 @@ class DebBuilder(object):
             raise DebMakerError(
                 "Can't find cyberfile on metapath of package {}".format(deb_conf.name))
         return ret
+

@@ -81,7 +81,6 @@ class Action(core.action.Action):
         new_targets, path_to_desc = self.change_target_name(
             targets, False, False, False
         )
-
         packages = list()
         for i in process_packages:
             if i not in path_to_desc:
@@ -269,3 +268,4 @@ class Action(core.action.Action):
 
         if os.path.exists(os.path.join(self.workspace, release_path)):
             shutil.rmtree(os.path.join(self.workspace, release_path))
+

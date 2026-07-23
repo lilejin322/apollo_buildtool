@@ -19,6 +19,8 @@ install verb implement
 """
 import os
 import re
+import pwd
+import subprocess
 import core.action
 import xml.etree.ElementTree as ET
 from core import ErrCode
@@ -262,6 +264,7 @@ class Action(core.action.Action):
 
         if len(processed_package) == 0:
             logger.info("No package will be processed")
+            self.chown_modules_path()
             return 0
 
         # topological order all targets
@@ -281,9 +284,21 @@ class Action(core.action.Action):
         if not args.legacy:
             for package in processed_package:
                 logger.info('{} have been installed in "{}"'.format(package.name, package.real_src_to_related_path()))
-
+        self.chown_modules_path()
         return 0
-
+    
+    def chown_modules_path(self):
+        """add user permission on .aem/envroot/apollo/modules"""
+        user_info = pwd.getpwuid(1000)
+        username = user_info.pw_name
+        module_path = os.path.join(self.workspace, ".aem/envroot/apollo/modules")
+        ret = subprocess.run(f"sudo chown -R {username} {module_path}", shell=True)
+        if ret.returncode != 0:
+                ErrCode.send_error(
+                    ErrCode.FileIoErr,
+                    ["can not change modules owner"]
+                )
+    
     def install(self, pkg_desc, args):
         """install package"""
         logger.info("Process {}".format(pkg_desc.name))
@@ -303,3 +318,4 @@ class Action(core.action.Action):
             default=False, help='install package without copy files to workspace')
         parser.add_argument("-m", '--modules', nargs='*',
             metavar='*', type=str.lstrip, help='Install the packages by specified modules')
+

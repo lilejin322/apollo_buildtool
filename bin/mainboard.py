@@ -29,8 +29,7 @@ import platform
 import subprocess
 import datetime
 
-pkg_root = os.path.dirname(
-    os.path.abspath(os.path.dirname(os.path.realpath(__file__))))
+pkg_root = os.path.dirname(os.path.abspath(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, pkg_root)
 
 from core.entry_point import EntryPoints
@@ -48,8 +47,7 @@ from core import ErrCode
 # signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 VERSION = get_config('setting', 'version')
 USER_HOME_PATH = os.path.expanduser('~')
-VERSION_AVAILABLE_CHECK_PATH = os.path.join(USER_HOME_PATH, '.apollo',
-                                            'available_check')
+VERSION_AVAILABLE_CHECK_PATH = os.path.join(USER_HOME_PATH, '.apollo', 'available_check')
 
 
 def exit_handler():
@@ -80,23 +78,19 @@ class PackageBuilder(object):
     def __init__(self):
         set_handler()
         self.use_gpu = False
-        self.parser = argparse.ArgumentParser(
-            description='build tools of apollo')
-        self.parser.add_argument('-v',
-                                 '--version',
-                                 action='version',
-                                 version=VERSION)
+        self.parser = argparse.ArgumentParser(description='build tools of apollo')
+        self.parser.add_argument(
+            '-v', '--version', action='version', version=VERSION)
         subparsers = self.parser.add_subparsers(help='sub-command')
 
         if len(sys.argv) <= 1:
             ErrCode.send_error(
-                ErrCode.ParamErr,
-                ["command not found! Add -h to show the help message"])
+                ErrCode.ParamErr, ["command not found! Add -h to show the help message"]
+            )
         self.current_commands = sys.argv
         self.command = sys.argv[1]
 
-        self.entry_points = EntryPoints(entry_points_path, root_path,
-                                        subparsers, self.command)
+        self.entry_points = EntryPoints(entry_points_path, root_path, subparsers, self.command)
         self.parms = self.parser.parse_args()
         if self.command != 'upgrade':
             repository = get_repository()
@@ -105,36 +99,31 @@ class PackageBuilder(object):
     def check_version_available(self, repository):
         """check version available"""
         try:
-            if (not os.path.exists(VERSION_AVAILABLE_CHECK_PATH)
-                    or datetime.datetime.now().date()
-                    != get_file_mdate(VERSION_AVAILABLE_CHECK_PATH)):
-                code, msg, data = _request_pkg_version_available(
-                    repository, VERSION)
+            if (not os.path.exists(VERSION_AVAILABLE_CHECK_PATH) or
+                    datetime.datetime.now().date() != get_file_mdate(VERSION_AVAILABLE_CHECK_PATH)):
+                code, msg, data = _request_pkg_version_available(repository, VERSION)
                 if code == 500:
                     # logger.error(f'check buildtool version available failed..., error code: {code}')
-                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH,
-                                                 code)
+                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH, code)
                     return True
                 elif code == 10100:
-                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH,
-                                                 code)
+                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH, code)
                     return True
                 elif code == 10101:
                     version = data.get('pkg_version')
                     upgrade_version(version)
-                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH,
-                                                 code)
+                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH, code)
                     subprocess.run(self.current_commands)
                     exit(0)
                 elif code == 10102:
                     ErrCode.send_error(
                         ErrCode.AptErr,
                         "buildtool version has been deprecated",
-                        f'\nfirst: {msg}\nsecond: execute "buildtool upgrade"')
+                        f'\nfirst: {msg}\nsecond: execute "buildtool upgrade"'
+                    )
                 else:
                     # logger.error(f'check buildtool version available failed..., error code: {code}')
-                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH,
-                                                 code)
+                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH, code)
                     return True
             else:
                 return True
@@ -150,21 +139,25 @@ class PackageBuilder(object):
         """check env"""
         supported_archs = "x86_64 aarch64"
         if platform.machine() not in supported_archs:
-            ErrCode.send_error(ErrCode.ArchErr, [
-                "Cpu arch {} is not support!".format(platform.machine()),
-                "Currently, we only supports running on the following CPU archs: {}"
-                .format(supported_archs)
-            ])
+            ErrCode.send_error(
+                ErrCode.ArchErr,
+                [
+                    "Cpu arch {} is not support!".format(platform.machine()),
+                    "Currently, we only supports running on the following CPU archs: {}".format(supported_archs)
+                ]
+            )
 
     def check_platfrom_support(self):
         """check env"""
         supported_platfrom = "Linux"
         if platform.system() != supported_platfrom:
-            ErrCode.send_error(ErrCode.ArchErr, [
-                "Platform {} is not support".format(platform.system()),
-                "Currently, we only supports running on the following platfrom: {}"
-                .format(supported_platfrom)
-            ])
+            ErrCode.send_error(
+                ErrCode.ArchErr,
+                [
+                    "Platform {} is not support".format(platform.system()),
+                    "Currently, we only supports running on the following platfrom: {}".format(supported_platfrom)
+                ]
+            )
 
     def check_minimal_memory_requirement(self):
         """check env"""
@@ -192,10 +185,8 @@ class PackageBuilder(object):
         """check env"""
         if platform.machine() == "aarch64":
             try:
-                driver_existence = subprocess.check_output(
-                    ["lsmod | grep -q nvgpu"], shell=True)
-                cuda_existence = subprocess.check_output(
-                    ["ldconfig -p | grep -q cudart"], shell=True)
+                driver_existence = subprocess.check_output(["lsmod | grep -q nvgpu"], shell=True)
+                cuda_existence = subprocess.check_output(["ldconfig -p | grep -q cudart"], shell=True)
                 if driver_existence is not None and cuda_existence is not None:
                     self.use_gpu = True
             except:
@@ -216,9 +207,10 @@ class PackageBuilder(object):
     def check_in_docker_env(self):
         """check env"""
         if not (pathlib.Path("/.dockerenv")).is_file():
-            ErrCode.send_error(ErrCode.ArchErr, [
-                "Build outside of Apollo docker environment is not supported."
-            ])
+            ErrCode.send_error(
+                ErrCode.ArchErr,
+                ["Build outside of Apollo docker environment is not supported."]
+            )
 
     def generate_env_config(self):
         """add environment variable to .bashrc"""
@@ -243,19 +235,18 @@ class PackageBuilder(object):
                     env_file = user_dir / ".bashrc"
                     target_file.append(env_file)
 
-        # rcfile managed by aem
-        # rc = "source {}/setup.sh".format(get_config("base", "apollo_root"))
+        rc = "source {}/setup.sh".format(get_config("base", "apollo_root"))
 
-        # for env_file in target_file:
-        #     content = None
-        #     with env_file.open("r", encoding="utf-8") as f:
-        #         content = f.read()
-        #     env_file_io = env_file.open("a+", encoding="utf-8")
-        #     if content == "":
-        #         env_file_io.write("#! /bin/bash\n")
-        #     if rc not in content:
-        #         env_file_io.write(rc)
-        #     env_file_io.close()
+        for env_file in target_file:
+            content = None
+            with env_file.open("r", encoding="utf-8") as f:
+                content = f.read()
+            env_file_io = env_file.open("a+", encoding="utf-8")
+            if content == "":
+                env_file_io.write("#! /bin/bash\n")
+            if rc not in content:
+                env_file_io.write(rc)
+            env_file_io.close()
 
         setup_path = pathlib.Path(pkg_root) / "setup.sh"
         link_target = pathlib.Path(get_config("base", "apollo_root"))
@@ -266,7 +257,7 @@ class PackageBuilder(object):
         """Execute the action logic"""
         self.check_esdcan_use()
         self.check_gpu_existence()
-        # self.check_in_docker_env()
+        self.check_in_docker_env()
         self.generate_env_config()
         self.check_architecture_support()
         self.check_platfrom_support()
@@ -279,20 +270,15 @@ class PackageBuilder(object):
         """print upgrade message"""
         if self.command == "upgrade":
             return
-        if hasattr(self.entry_points.action_reference(self.command),
-                   "decider"):
+        if hasattr(self.entry_points.action_reference(self.command), "decider"):
             instance = self.entry_points.action_reference(self.command)
             meta_cli = instance.decider.metadata_cli
             buildtool_latest_version = meta_cli.get_latest_version("buildtool")
             latest_version = parse_version(buildtool_latest_version)
             current_version = parse_version(VERSION)
             if latest_version > current_version:
-                print(
-                    f"\033[33mNew version {buildtool_latest_version} of buildtool is available!\033[0m"
-                )
-                print(
-                    "\033[33mYou should consider upgrading via the 'buildtool upgrade'\033[0m"
-                )
+                print(f"\033[33mNew version {buildtool_latest_version} of buildtool is available!\033[0m")
+                print("\033[33mYou should consider upgrading via the 'buildtool upgrade'\033[0m")
         return
 
 
