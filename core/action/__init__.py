@@ -358,7 +358,11 @@ class Action(object):
             if desc.name in target_set:
                 ErrCode.send_error(
                     ErrCode.PackageAttrErr,
-                    ["Different package in workspace have same name: {}".format(desc.name)]
+                    [
+                        "multiple {} exist in following paths: ".format(desc.name),
+                        "\t{}".format(target_path),
+                        "\t{}".format(target_set[desc.name].workspace)
+                    ]
                 )
 
             if desc.status == Status.INVALID:
