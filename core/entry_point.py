@@ -174,3 +174,7 @@ class EntryPoints(object):
             self.lib_entry_points.load_entry_point(verb)
             self.load_entry_point(verb)
         return self.actions[verb].execute(args, **kwargs)
+
+    def action_reference(self, verb):
+        """return action instance"""
+        return self.actions[verb]

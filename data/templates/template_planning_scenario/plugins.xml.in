@@ -1,0 +1,5 @@
+<library path="{{ package_path }}/lib{{ scenario_name_snake }}.so">
+    <class type="apollo{{ namespaces|format_namespace }}::{{scenario_name }}" base_class="apollo::planning::Scenario"></class>
+{% for stage in scenario_stages %}    <class type="apollo{{ namespaces|format_namespace }}::{{ stage }}" base_class="apollo::planning::Stage"></class>
+{% endfor %}
+</library>

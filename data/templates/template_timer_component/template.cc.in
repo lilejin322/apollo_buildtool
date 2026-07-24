@@ -1,0 +1,48 @@
+/******************************************************************************
+ * Copyright 2023 The Apollo Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *****************************************************************************/
+
+/******************************************************************************
+ * @file {{ target_name }}_component.cc
+ *****************************************************************************/
+
+#include "{{ package_path }}/{{ target_name }}_component.h"
+
+namespace apollo {
+{% for ns in namespaces %}namespace {{ ns }} {
+{% endfor %}
+bool {{ class_name }}::Init() {
+
+  ACHECK(ComponentBase::GetProtoConfig(&config_))
+      << "failed to load {{ target_name }} config file "
+      << ComponentBase::ConfigFilePath();
+
+  AINFO << "Load config succedded.\n" << config_.DebugString();
+  // TODO: add your own init code here.
+
+  AINFO << "Init {{ class_name }} succedded.";
+  return true;
+}
+
+bool {{ class_name }}::Proc() {
+  AINFO << "Proc {{ class_name }} triggered.";
+
+  // TODO: add your own proc code here.
+
+  return true;
+}
+
+{% for ns in namespaces|reverse %}} // namespace {{ ns }}
+{% endfor %}} // namespace apollo

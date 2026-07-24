@@ -36,6 +36,7 @@ from core.package_descriptor import PackageDesc, Status
 from core.package_identification.identifier import PackageIdentification
 from core.rc_generator import main as generate_apollo_rc_file
 from core.task.bazel import BAZEL_EXECUTABLE
+from core.task.bazel.handler.preprocess import _get_stored_hash_of_package, _request_hash_of_package
 
 logger = get_logger('buildtool')
 
@@ -73,6 +74,74 @@ class Action(object):
         self.targets_path = list()
         self.identifier = PackageIdentification()
         self.repositories = list()
+
+    def clean_local_target(self, pkg_desc):
+        """
+        clean local target
+        """
+        if not pkg_desc.type == "module":
+            return
+        packages_meta = os.path.join(
+            get_config("base", "apollo_root"),
+            get_config("base", "package_meta_prefix")
+        )
+        meta = os.path.join(packages_meta, pkg_desc.name)
+
+        if not os.path.exists(meta):
+            return
+
+        cyberfile_path = os.path.join(meta, "cyberfile.xml")
+        cyberfile_et = ET.parse(cyberfile_path)
+        fr = cyberfile_et.getroot()
+        version = fr.find("version").text
+        if version == "local":
+            return
+        if version == pkg_desc.version:
+            return
+
+        new_pkg_hash_val = _request_hash_of_package(pkg_desc)
+        stored_pkg_hash_val = _get_stored_hash_of_package(pkg_desc)
+        if new_pkg_hash_val == stored_pkg_hash_val and \
+                new_pkg_hash_val != "" and stored_pkg_hash_val != "":
+            logger.info(f"No removal of {pkg_desc.name} due to hash consistency")
+            return
+
+        logger.info(f"Requiring {pkg_desc.name}={pkg_desc.version}, Removing {pkg_desc.name}={version}")
+
+        prerm = "{}/prerm".format(meta)
+        postrm = "{}/postrm".format(meta)
+        if not os.path.exists(prerm) or not os.path.exists(postrm):
+            file_should_be_deleted = []
+            with open(os.path.join(meta, "meta.txt"), 'r') as f:
+                file_should_be_deleted = f.read().split("\n")
+                file_should_be_deleted = [
+                    i.split(":")[-1] for i in file_should_be_deleted]
+            for i in file_should_be_deleted:
+                ele = os.path.join(get_config("base", "apollo_root"), i)
+                if os.path.exists(ele):
+                    subprocess.run(f"rm -rf {ele}", shell=True)
+            shutil.rmtree(meta)
+        else:
+            subprocess.run("sudo {}".format(prerm),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            subprocess.run("sudo {}".format(postrm),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+    def cache_install_target(self, workspace, target_name):
+        """
+        cache install target
+        """
+        user_installation = os.path.join(workspace, "dev",
+                get_config("cache", "user_installed_package"))
+        os.makedirs(os.path.dirname(user_installation), exist_ok=True)
+        if not os.path.exists(user_installation):
+            with open(user_installation, "w+") as f:
+                f.write(f"{target_name}\n")
+        else:
+            with open(user_installation, "r+") as f:
+                content = f.read().split("\n")
+                if target_name not in content:
+                    f.write(f"{target_name}\n")
 
     def execute(self, context, **kwargs):
         """

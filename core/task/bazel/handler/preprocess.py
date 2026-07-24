@@ -102,7 +102,8 @@ def _check_packages_is_installed(pkg_desc: PackageDesc):
             cyberfile = ET.parse(cyberfile_path)
             cyberfile_version = cyberfile.find("version").text
         except Exception as ex:
-            logger.warning("Parse apollo package {} meta failed, try to reinstall it")
+            logger.warning(
+                "Parse apollo package {} meta failed, try to reinstall it".format(pkg_desc.name))
             return reinstall
         if cyberfile_version != pkg_desc.version:
             if cyberfile_version == "local" or pkg_desc.version == "local":
@@ -134,19 +135,39 @@ def _request_apollo_package_in_playgroud(pkg_desc):
     headers = {"Host": "apollo.baidu.com", 
             "Authorization": "Bearer {}".format(token)}
     request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}".format(
-        get_config("api", "download"), pkg_desc.repository, arch, codename, 
+        get_config("api", "download_query"), pkg_desc.repository, arch, codename, 
         _get_apollo_package_full_name(pkg_desc), pkg_desc.version,
     )
     
     response = requests.get(
-        url=request_url, headers=headers, stream=True)
+        url=request_url, headers=headers)
+
     if response.status_code != 200:
-        ErrCode.send_error(
-            ErrCode.NetworkIoError, 
-            ["Download packages {} failed, status: {}".format(
-                pkg_desc.name, response.status_code)]
-    )
-    install_deb_name = _return_deb_name(pkg_desc) 
+        # fallback to legacy download url
+        request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}".format(
+            get_config("api", "download"), pkg_desc.repository, arch, codename, 
+            _get_apollo_package_full_name(pkg_desc), pkg_desc.version,
+        )
+        response = requests.get(
+            url=request_url, headers=headers, stream=True)  
+    else:
+        try:
+            download_url = response.json()
+            if not download_url.startswith("http"):
+                ErrCode.send_error(
+                    ErrCode.NetworkIoError, 
+                    ["Query packages {} failed".format(
+                        pkg_desc.name)])
+        except:
+            ErrCode.send_error(
+                ErrCode.NetworkIoError, 
+                ["Query packages {} failed".format(
+                    pkg_desc.name)])
+
+        response = requests.get(download_url, stream=True) 
+    
+    install_deb_name = _return_deb_name(pkg_desc)
+    
     try:
         with open(os.path.join(playgroud, install_deb_name), "wb") as f:
             for chunk in progressbar(response.iter_content(chunk_size=4096), 
@@ -341,7 +362,6 @@ def _get_stored_hash_of_package(pkg_desc):
             'find {} -name "*" -type f -print0 | sort -z | xargs -0 cat | sha1sum'.format(hash_input),
             shell=True, env=shell_env).decode("utf-8")
     except Exception as ex:
-        print(str(ex))
         exit(-1)
         logger.warning("The meta of {} is damaged, force to upgrade".format(pkg_desc.name))
         return ""
@@ -450,14 +470,10 @@ def _copy_package_to_workspace(pkg_desc: PackageDesc, workspace: str, **kwargs):
             module_src
         ))
     
-    if not copy_source.exists():
-        ErrCode.send_error(
-            ErrCode.PackageAttrErr,
-            "Missing source code of Package {}, Which means this package not support imported as type 'src'".format(
-                pkg_desc.name
-            ),
-            "Change the import type of this package"
-        )
+    if not copy_source.exists() or \
+            not os.path.exists(os.path.join(str(copy_source), "cyberfile.xml")):
+        logger.warning("Package {} does not provide source, skip".format(pkg_desc.name))
+        return None
     copy_tree(str(copy_source), str(package_workspace_path))
     # if not (package_workspace_path / "cyberfile.xml").exists() and \
     #     ((package_workspace_path / "cyberfile_cpu.xml").exists() and (package_workspace_path / "cyberfile_gpu.xml").exists()):

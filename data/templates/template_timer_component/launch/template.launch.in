@@ -1,0 +1,7 @@
+<cyber>
+  <module>
+    <name>{{ target_name }}</name>
+    <dag_conf>{{ package_path }}/dag/{{ target_name }}.dag</dag_conf>
+    <process_name>{{ target_name }}</process_name>
+  </module>
+</cyber>

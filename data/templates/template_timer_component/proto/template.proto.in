@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+package apollo{{ namespaces | list_to_proto_package }};
+
+// message type of channel, just a placeholder for demo,
+// you should use `--channel_message_type` option to specify the real message type
+message {{ class_name}}Msg {
+
+}
+
+message {{ config_message_name }} {
+  optional string name = 1;
+};

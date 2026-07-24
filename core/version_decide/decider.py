@@ -210,14 +210,15 @@ class DeciderInterface(object):
                 if name.startswith("3rd") or name == "bazel-extend-tools":
                     version = self.metadata_cli.get_available_version_format(name)
                 else:
-                    ns = self.metadata_cli.get_repository(name)
                     for repo in self.repositories:
-                        if repo.name == ns:
+                        if self.metadata_cli.valid_repository_check(name, repo.version, repo.name):
                             version = "={}".format(repo.version)
                             break
                     if version == self.NON_VERSION:
-                        ErrCode.send_error(ErrCode.FileIoErr,
-                            ["Internal error: missing version of root deps: {}".format(name)]
+                        # package with repo version not found in remote
+                        # it may caused by a deleted or name changed package
+                        version = "{}".format(
+                            self.metadata_cli.get_available_version_format(name)
                         )
             else:
                 # version specify, disable repository version
@@ -241,16 +242,21 @@ class DeciderInterface(object):
                             self.metadata_cli.get_available_version_format(register_pkg_dep_name)
                         register_pkg_deps[register_pkg_dep_name] = register_pkg_dep_version
                     else:
-                        ns = self.metadata_cli.get_repository(register_pkg_dep_name)
                         for repo in self.repositories:
-                            if repo.name == ns:
+                            if self.metadata_cli.valid_repository_check(
+                                    register_pkg_dep_name, repo.version, repo.name):
                                 register_pkg_dep_version = "={}".format(repo.version)
                                 break
                         if register_pkg_dep_version == self.NON_VERSION:
-                            ErrCode.send_error(
-                                ErrCode.FileIoErr,
-                                ["Internal error: missing version of root deps: {}".format(register_pkg_dep_name)]
+                            # package with repo version not found in remote
+                            # it may caused by a deleted or name changed package
+                            register_pkg_dep_version = "{}".format(
+                                self.metadata_cli.get_available_version_format(register_pkg_dep_name)
                             )
+                            # ErrCode.send_error(
+                            #     ErrCode.FileIoErr,
+                            #     ["Internal error: missing version of root deps: {}".format(register_pkg_dep_name)]
+                            # )
                         register_pkg_deps[register_pkg_dep_name] = register_pkg_dep_version 
                 else:
                     # version specify, disable repository version
@@ -434,7 +440,15 @@ class DeciderInterface(object):
             # ignore system depend
             if cyberfile_contents is None:
                 continue
-            next_level_all_desc = identifier.identify_all(cyberfile_contents, dep)
+
+            next_level_all_desc = []
+            # set track repo of package
+            for repo_index in range(len(ns)):
+                cyberfiles_single_repo = cyberfile_contents[repo_index]
+                single_repo_all_desc = identifier.identify_all(cyberfiles_single_repo, dep)
+                for i in single_repo_all_desc:
+                    i.repository = ns[repo_index]
+                next_level_all_desc = next_level_all_desc + single_repo_all_desc
 
             for desc in next_level_all_desc:
                 if desc.status == Status.INVALID:
@@ -442,9 +456,12 @@ class DeciderInterface(object):
                         ErrCode.PackageAttrErr,
                         ["{} with invalid status".format(desc.name)]
                     )
-
-                desc.repository = ns
-                self.cyberfile_source[dep.name][desc.version] = desc
+                # Ignore identical versions of packages from different repos with low priority
+                if dep.name not in self.cyberfile_source:
+                    self.cyberfile_source[dep.name][desc.version] = desc
+                else:
+                    if desc.version not in self.cyberfile_source[dep.name]:
+                        self.cyberfile_source[dep.name][desc.version] = desc
                 desc_deps_dict = dict()
                 for desc_dep in desc.deps:
                     # stop track local target

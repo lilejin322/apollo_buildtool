@@ -1,0 +1,10 @@
+{% for stage in scenario_stages_info %}stage: {
+  name: "{{ stage.stage_name_snake_upper }}"
+  type: "{{ stage.stage_name }}"
+  enabled: true
+  task {
+    name: ""
+    type: ""
+  }
+}
+{% endfor %}

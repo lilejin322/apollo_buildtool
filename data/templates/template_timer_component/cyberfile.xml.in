@@ -1,0 +1,23 @@
+<package format="2">
+  <name>{{ package_name }}</name>
+  <version>local</version>
+  <description>
+    {{ description }}
+  </description>
+
+  <maintainer email="{{ email }}">{{ author }}</maintainer>
+  <license>Apache License 2.0</license>
+  <url type="website">https://www.apollo.auto/</url>
+  <url type="repository">https://github.com/ApolloAuto/apollo</url>
+  <url type="bugtracker">https://github.com/ApolloAuto/apollo/issues</url>
+
+  <type>{{ package_type }}</type>
+  <src_path>//{{ package_path }}</src_path>
+  <builder>bazel</builder>
+
+  <depend type="binary" repo_name="cyber">cyber</depend>
+{% for dep in dependencies %}
+  <depend type="{{ dep.import_type }}" repo_name="{{ dep.repo_name }}"{% if dep.lib_names %} lib_names="{{ dep.lib_names }}"{% endif %}>{{ dep.package_name }}</depend>
+{% endfor %}
+  <depend>bazel-extend-tools</depend>
+</package>

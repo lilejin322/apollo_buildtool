@@ -22,7 +22,10 @@ import os
 from argparse import Namespace
 
 import core.action
+import shutil
+import subprocess
 from core.action import Context
+from core.package_descriptor import PackageDesc
 from core.topological_order import build_order
 from core.task.bazel.build import BazelBuildTask
 from core.task.bazel.handler import Procedure
@@ -104,6 +107,10 @@ class Action(core.action.Action):
             help='Expunge the building cache before build'
         )
         parser.add_argument(
+            '--sync-with-output', action='store_true', default=False,
+            help='Clean the package output which current workspace does not need it'
+        )
+        parser.add_argument(
             '-j', '--jobs', type=int, default=-1,
             help='Specifies the number of threads to compile in parallel'
         )
@@ -118,6 +125,10 @@ class Action(core.action.Action):
         parser.add_argument(    
             '--install_dep_only', action="store_true", default=False,
             help="Specifies only install depends"
+        )
+        parser.add_argument(    
+            '--compatible-with-src', action='store_true', default=False,
+            help='output are compatible with the src env.'
         )
 
     def process_args(self):
@@ -202,6 +213,11 @@ class Action(core.action.Action):
             return ErrCode.ParamErr 
         workspace = self.workspaces[0]
 
+        if args.compatible_with_src:
+            if os.path.exists(os.path.join(
+                    workspace, "dev", "install")):
+                shutil.rmtree(os.path.join(workspace, "dev", "install"))
+
         packages_path = []
         if len(self.packages) == 0:
             self._search_package_in_workspace(workspace, gpu_if_available=gpu_if_available)
@@ -250,11 +266,37 @@ class Action(core.action.Action):
                 logger.warning("{} is a invalid path".format(i))
                 continue
             packages.append(path_to_desc[i])
-        
+
+        if args.sync_with_output:
+            user_installation = os.path.join(workspace, "dev",
+                get_config("cache", "user_installed_package"))
+            
+            os.makedirs(os.path.dirname(user_installation), exist_ok=True)
+
+            if os.path.exists(user_installation):
+                with open(user_installation, "r") as f:
+                    install_deps = f.read().split("\n")
+                if len(install_deps) > 0:
+                    virtual_target = PackageDesc()
+                    virtual_target.create_dummy_pkg("placeholder", install_deps)
+            else:
+                virtual_target = PackageDesc()
+                virtual_target.create_dummy_pkg("placeholder", [])
+
+            decided_targets = targets.copy()
+            decided_targets.append(virtual_target)
+        else:
+            decided_targets = targets.copy() 
         # version determine
-        targets = self.decider(targets)
+        decided_targets = self.decider(decided_targets)
+        for target in targets:
+            target.check_real_src()
+
         version_results = self.decider.get_result()
         desc_poll = self.decider.cyberfile_source
+
+        packages_in_graph = [i.name for i in version_results] + [i.name for i in targets]
+        packages_in_graph = set(packages_in_graph)
         
         # topological order all targets
         targets, graph = build_order(packages, targets, version_results, desc_poll)
@@ -270,6 +312,73 @@ class Action(core.action.Action):
         # determine real_src of those package and check status
         if not self._check_status_before_build(targets):
             return -1
+
+        # Early deletion of modules prevents deletion of 
+        # compiled outputs that should not be deleted
+        for i in targets:
+            self.clean_local_target(i)
+
+        installed_meta = get_config("cache", "installed_package")
+        os.makedirs(os.path.dirname(installed_meta), exist_ok=True)
+        exclude_packages = set()
+        if not os.path.exists(installed_meta):
+            with open(installed_meta, "w+") as f:
+                f.write("\n".join(["{}:{}".format(
+                    workspace, i) for i in packages_in_graph])) 
+        else:
+            with open(installed_meta, "r+") as f:
+                raw_installed_package = set(f.read().split("\n"))
+                # update cache list
+                package_to_source = dict()
+                for i in raw_installed_package:
+                    elem = i.split(":")
+                    package_to_source[elem[1]] = elem[0]
+                cache_content = list()
+                # switch the correct source
+                for i in packages_in_graph:
+                    package_to_source[i] = workspace
+                    cache_content.append("{}:{}".format(workspace, i))
+                for i in package_to_source:
+                    if package_to_source[i] != workspace:
+                        cache_content.append(
+                            "{}:{}".format(package_to_source[i], i))
+                        exclude_packages.add(i)
+                f.seek(0)
+                f.truncate(0)
+                f.write("\n".join(cache_content))
+
+        # output sync with workspace
+        if args.sync_with_output:
+            packages_meta = os.path.join(
+                get_config("base", "apollo_root"),
+                get_config("base", "package_meta_prefix")
+            )
+            packages = os.listdir(packages_meta)
+            for i in packages:
+                if i.startswith("3rd"):
+                    continue
+                if i not in exclude_packages and i not in packages_in_graph:
+                    logger.info("Removing redundant packages {}".format(i))
+                    meta = os.path.join(packages_meta, i)
+                    prerm = "{}/prerm".format(meta)
+                    postrm = "{}/postrm".format(meta)
+                    if not os.path.exists(prerm) or not os.path.exists(postrm):
+                        # legacy packages, just remove the meta
+                        file_should_be_deleted = []
+                        with open(os.path.join(meta, "meta.txt"), 'r') as f:
+                            file_should_be_deleted = f.read().split("\n")
+                            file_should_be_deleted = [
+                                i.split(":")[-1] for i in file_should_be_deleted]
+                        for i in file_should_be_deleted:
+                            ele = os.path.join(get_config("base", "apollo_root"), i)
+                            if os.path.exists(ele):
+                                subprocess.run(f"rm -rf {ele}", shell=True)
+                        shutil.rmtree(meta)
+                        continue
+                    subprocess.run("sudo {}".format(prerm),
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                    subprocess.run("sudo {}".format(postrm),
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
         for index, target in enumerate(targets):
             # make sure target position is correct
@@ -298,7 +407,7 @@ class Action(core.action.Action):
 
             ret_code = builder.run(
                 Context(
-                    args = Namespace(
+                    args=Namespace(
                         builder_args=self.builder_args, 
                         known_options=self.known_options,
                         workspace=workspace,
@@ -307,11 +416,12 @@ class Action(core.action.Action):
                         dev=self.cyberfile_dev,
                         memories=args.memories,
                         jobs=args.jobs,
+                        compatible=args.compatible_with_src,
                         childs=graph._get_node_by_name(target.name).return_all_childs(),
                         gpu_if_available=gpu_if_available,
                         install_dep_only=self.args.install_dep_only
                     ), 
-                    pkg = target
+                    pkg=target
                 )
             )
             if ret_code != 0:
@@ -319,27 +429,10 @@ class Action(core.action.Action):
 
             self.set_ld_path()
 
-        # clear all replicated '-dev' 
-        # before this change name logic of install rule have been removed
-        # try:
-        #     apollo_package_path = get_config("base", "apollo_package_path")
-        #     for package in os.listdir(apollo_package_path):
-        #         package_dir = os.path.join(apollo_package_path, package, "local")
-        #         cyberfile = os.path.join(package_dir, "cyberfile.xml")
-        #         cyberfile_content = None
-        #         if Path(cyberfile).exists():
-        #             with open(cyberfile, "r") as f:
-        #                 cyberfile_content = f.read()
-        #             while "-dev-dev" in cyberfile_content:
-        #                 cyberfile_content = cyberfile_content.replace("-dev-dev", "-dev")
-        #             with open(cyberfile, "w+") as f:
-        #                 cyberfile = f.write(cyberfile_content)
-        # except:
-        #     # ignore error temporarily
-        #     pass
+        if args.compatible_with_src:
+            if os.path.exists(os.path.join(
+                    workspace, "dev", "install")):
+                shutil.rmtree(os.path.join(workspace, "dev", "install"))
         
         return 0
-        
-
-
         

@@ -1,0 +1,38 @@
+load("//tools:apollo_package.bzl", "apollo_cc_test", "apollo_package", "apollo_plugin")
+load("//tools:cpplint.bzl", "cpplint")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "runtime_files",
+    srcs = glob([
+        "conf/**",
+    ]),
+)
+
+apollo_plugin(
+    name = "lib{{ scenario_name_snake }}.so",
+    srcs = [
+        "{{ scenario_name_snake }}.cc",
+{% for stage in scenario_stages_snake %}        "{{ stage }}.cc",
+{% endfor %}
+    ],
+    hdrs = [
+        "{{ scenario_name_snake }}.h",
+{% for stage in scenario_stages_snake %}        "{{ stage }}.h",
+{% endfor %}
+    ],
+    copts = ["-DMODULE_NAME=\\\"planning\\\""],
+    description = ":plugin_{{ target_name }}_description.xml",
+    deps = [
+        "//cyber",
+        "//modules/planning/planning_base:apollo_planning_planning_base",
+        "//{{ package_path }}/proto:{{ scenario_name_snake }}_proto",
+{% for dep in build_dependencies %}        "{{ dep }}",
+{% endfor %}
+    ],
+)
+
+apollo_package()
+
+cpplint()

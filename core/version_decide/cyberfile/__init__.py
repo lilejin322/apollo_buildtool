@@ -164,7 +164,7 @@ class MetaDataCli(object):
                     name for i in self.raw_metadata_pool[repo.name][name]
                 ]
             
-            self._register_local_package()
+            self._register_local_package(repo)
             local_package_in_repo = []
             for _, name in enumerate(self.raw_metadata_pool[repo.name]): 
                 # parse version
@@ -189,7 +189,7 @@ class MetaDataCli(object):
 
             self._cached_all_cyberfile(repo.name, local_package_in_repo)
 
-    def _register_local_package(self):
+    def _register_local_package(self, repo):
         self.local_package_pool = {}
         package_meta_path = os.path.join(
             get_config("base", "apollo_root"), get_config("base", "package_meta_prefix"))
@@ -202,14 +202,19 @@ class MetaDataCli(object):
             pkg = self.change_package_name(pkg)
             ns_location = None
             ns_version = None
-            for ns in self.repositories:  
-                if pkg in self.raw_cyberfile_path_pool[ns.name]:
-                    ns_location = ns.name
-                    ns_version = ns.version
+
+            if pkg in self.raw_cyberfile_path_pool[repo.name]:
+                ns_location = repo.name
+                ns_version = repo.version
+
             # igonre non apollo package
             if ns_location is not None:
-                root = ET.parse(cyberfile).getroot()
-                pkg_version = root.find("version").text
+                try:
+                    root = ET.parse(cyberfile).getroot()
+                    pkg_version = root.find("version").text
+                except Exception as ex:
+                    logger.warning(f"Parse meta of {pkg} failed: {str(ex)}")
+                    continue
                 if pkg_version != "local": 
                     self.local_package_pool[pkg] = {
                         "version": pkg_version, 
@@ -220,7 +225,7 @@ class MetaDataCli(object):
                     # Set the package version number to the repository specified version 
                     # to avoid version leveling failures
                     root.find("version").text = ns_version
-                    if not (ns_version[0] >= "0" and ns_version <= "9"):
+                    if not (ns_version[0].isdigit()):
                         ns_version = self._get_latest_version_before_merge(ns_location, "cyber")
                     cyberfile_content = ET.tostring(root, encoding="utf-8").decode("utf-8")
                     self.local_package_pool[pkg] = {
@@ -242,7 +247,7 @@ class MetaDataCli(object):
         return [Version.parse(version_dict[i]) for i in versions][-1].__str__()
 
     def _cached_all_cyberfile(self, ns, local_package):
-        logger.info("update the local cache")
+        logger.info("update repo {}".format(ns))
         prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), ns)
         cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename) 
         if not os.path.exists(cyberfiles_path):
@@ -284,58 +289,97 @@ class MetaDataCli(object):
         return list(set(pkg_names))
 
     def acquire_cyberfile(self, name: str):
+        #TODO: Compatible with cross-repository packages
         # format name to repo package name
+        ret_namespace, ret_cyberfile = list(), list()
+
         name = self.change_package_name(name)
-        ns_location = None
         for ns in self.repositories:  
             if name in self.raw_cyberfile_path_pool[ns.name]:
-                ns_location = ns.name
-                break
+                ret_namespace.append(ns.name)
         
-        if ns_location is None:
+        if len(ret_namespace) == 0:
             # system package or not found
             return None, None
 
-        if name not in self.cyberfile_source[ns_location]:
-            prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), ns_location)
-            cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
+        for ns in ret_namespace:
+            if name not in self.cyberfile_source[ns]:
+                prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), ns)
+                cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
 
-            if os.path.exists(cyberfile_cache):
-                os.remove(cyberfile_cache)
+                if os.path.exists(cyberfile_cache):
+                    os.remove(cyberfile_cache)
 
-            ErrCode.send_error(ErrCode.FileIoError,
-                ["Internal error: missing cyberfile of {} in repository".format(name, ns_location)])
+                ErrCode.send_error(ErrCode.FileIoError,
+                    ["Internal error: missing cyberfile of {} in repository".format(name, ns)])
+            ret_cyberfile.append(self.cyberfile_source[ns][name])
 
-        return ns_location, self.cyberfile_source[ns_location][name]
+        return ret_namespace, ret_cyberfile
 
-    def get_repository(self, name: str):
+    def valid_repository_check(self, name: str, version: str, repo_name: str):
         """get package repository"""
+        #TODO: Compatible with cross-repository packages
         prefix_name = self.change_package_name(name)
         ns, cyber_content = self.acquire_cyberfile(name)
         if cyber_content is None:
-            return None
-        return ns
+            return False
+
+        if repo_name not in ns:
+            return False
+        
+        available_version = \
+            [i.__str__() for i in self.raw_version_pool[repo_name][prefix_name]]
+        if version in available_version:
+            return True
+        else:
+            return False
+
 
     def get_available_version_format(self, name: str):
+        #TODO: Compatible with cross-repository packages
         prefix_name = self.change_package_name(name)
         ns, cyber_content = self.acquire_cyberfile(name)
         if cyber_content is None:
             return None
 
-        version_range = self.raw_version_pool[ns][prefix_name]
-        if len(version_range) > 1:
-            return ">={} <={}".format(version_range[0], version_range[-1])
+        version_range = []
+        for single_repo in ns:
+            version_range += [i.__str__() for i in self.raw_version_pool[single_repo][prefix_name]]
+
+        version_range = list(set(version_range))
+        versions = [parse_version(i) for i in version_range]
+
+        look_up = {}
+        for i in range(len(versions)):
+            look_up[versions[i]] = version_range[i]
+        versions.sort() 
+
+        sorted_version_range = [look_up[i] for i in versions]
+
+        if len(sorted_version_range) > 1:
+            return ">={} <={}".format(sorted_version_range[0], sorted_version_range[-1])
         else:
-            return "={}".format(version_range[-1])
+            return "={}".format(sorted_version_range[-1])
 
     def get_latest_version(self, name: str):
+        #TODO: Compatible with cross-repository packages
         prefix_name = self.change_package_name(name)
         ns, cyber_content = self.acquire_cyberfile(name)
         if cyber_content is None:
             return None
 
-        version_range = self.raw_version_pool[ns][prefix_name]
-        return version_range[-1]
+        selected_version = []
+        for repo in ns:
+            selected_version.append(self.raw_version_pool[repo][prefix_name][-1].__str__())
+
+        versions = [parse_version(i) for i in selected_version]
+        look_up = {}
+        for i in range(len(versions)):
+            look_up[versions[i]] = selected_version[i]
+        versions.sort() 
+
+        sorted_selected_version = [look_up[i] for i in versions]
+        return sorted_selected_version[-1]
 
     def change_package_name(self, name):
         if apollo_prefix not in name:

@@ -180,8 +180,10 @@ class Graph(object):
             hq.heapify(heap)
             node = hq.heappop(heap)
             if node.deps_num > 0:
-                logger.warning("recursive dependencies detected, " \
-                    "it may cause the failure of compilation")
+                ErrCode.send_error(
+                    ErrCode.PackageAttrErr,
+                    [f"Found recursive dependencies from {node.desc.name}"]
+                )
             for parent in node.parents:
                 parent.deps_num -= 1
             order.append(node.desc)

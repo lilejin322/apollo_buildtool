@@ -1,0 +1,3 @@
+<library path="{{ package_path }}/lib{{ task_name_snake }}.so">
+  <class type="apollo{{ namespaces|format_namespace }}::{{ task_name }}" base_class="apollo::planning::Task"></class>
+</library>

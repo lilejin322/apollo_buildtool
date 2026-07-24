@@ -15,10 +15,10 @@
  *****************************************************************************/
 
 /******************************************************************************
- * @file {{ target_name }}.cc
+ * @file {{ target_name }}_component.cc
  *****************************************************************************/
 
-#include "{{ package_path }}/{{ target_name }}.h"
+#include "{{ package_path }}/{{ target_name }}_component.h"
 
 namespace apollo {
 {% for ns in namespaces %}namespace {{ ns }} {

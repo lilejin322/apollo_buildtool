@@ -62,12 +62,13 @@ class BazelBuildTask(BazelBaseTask):
         install_dep_only = context.args.install_dep_only
 
         logger.info("Import depends...")
-        if not self.procedure.import_depends(
-                self.ws,
-                target=(pkg_desc.type == "module" and pkg_desc.import_type == "src"),
-                childs=childs
-        ):
+        if not self.procedure.import_depends(self.ws, childs = childs,
+            target=(pkg_desc.type == "module" and pkg_desc.import_type == "src")):
             return -1
+
+        if pkg_desc.type == "module" and pkg_desc.import_type == "src":
+            self.procedure.store_module_info(pkg_desc, childs)
+            self.procedure.render_dynamic_import_file(self.ws)
 
         logger.info("Preprocess {}".format(pkg_desc.name))
 
@@ -75,19 +76,11 @@ class BazelBuildTask(BazelBaseTask):
             """
             closure function which define install procedure
             """
-            logger.info("Building {}".format(pkg_desc.name))
+            if pkg_desc.workspace is None:
+                # skip building process
+                return 0
 
-            if _is_deprecated_package(pkg_desc):
-                # common-msgs needed
-                apollo_packages_path = Path(get_config("base", "apollo_package_path"))
-                local_cache = apollo_packages_path / _package_name_to_dir(pkg_desc.name) / "local"
-                if local_cache.is_dir():
-                    shutil.rmtree(str(local_cache))
-                if local_cache.exists():
-                    ErrCode.send_error(
-                        ErrCode.OccupiedErr,
-                        ["'{}' have been occupied"]
-                    )
+            logger.info("Building {}".format(pkg_desc.name))
 
             self._check_necessaries(Path(pkg_desc.workspace))
             ret = self._install(args, pkg_desc)
@@ -203,6 +196,10 @@ class BazelBuildTask(BazelBaseTask):
 
         install_prefix = get_config("base", "apollo_root") + "/"
         install_parm += " {}".format(install_prefix)
+        install_src_parm = install_parm
+
+        if args.compatible:
+            install_parm += " --compatible-with-src"
 
         os.chdir(str(workspace_wrapper))
 
@@ -212,7 +209,7 @@ class BazelBuildTask(BazelBaseTask):
         args_str = self._add_basic_args(bazel_args, known_options, nproc, args.memories, args.jobs)
 
         cmd_install_src = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
-                          ["{}:install_src".format(pkg_desc.real_src)] + ["--", install_parm]
+                          ["{}:install_src".format(pkg_desc.real_src)] + ["--", install_src_parm]
 
         cmd_install = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
                       ["{}:install".format(pkg_desc.real_src)] + ["--", install_parm]

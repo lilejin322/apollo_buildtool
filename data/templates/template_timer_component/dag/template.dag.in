@@ -1,0 +1,12 @@
+module_config {
+  module_library : "{{ package_path }}/lib{{ target_name }}_component.so"
+  timer_components {
+    class_name : "{{ class_name }}"
+    config {
+      name: "{{ target_name }}"
+      config_file_path:  "{{ package_path }}/conf/{{ config_file_name }}.pb.txt"
+      flag_file_path:  "{{ package_path }}/conf/{{ config_file_name }}.conf"
+      interval: 10
+    }
+  }
+}

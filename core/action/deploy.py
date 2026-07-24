@@ -49,8 +49,7 @@ class Action(core.action.Action):
     """pack action class"""
     def __init__(self):
         super().__init__()
-        self.parse_workspace_conf()
-        self.decider = DeciderInterface(self.repositories)
+        self.workspace = os.getcwd()
 
     def execute(self, args, **kwargs):
         """main logic of action"""
@@ -73,7 +72,14 @@ class Action(core.action.Action):
             ErrCode.send_error(
                 ErrCode.FileIoErr,
                 ["Loading .workspace.json failed. Make sure the file is valid"])
-        
+
+        self.parse_workspace_conf()
+        self.decider = DeciderInterface(self.repositories)
+
+        if not os.path.exists("./WORKSPACE"):
+            with open("./WORKSPACE", "w+") as f:
+                f.write("")
+
         targets = []
         local_file_targets_name = {}
         try:
@@ -201,6 +207,10 @@ class Action(core.action.Action):
             ErrCode.send_error(
                 ErrCode.FileIoErr,
                 ["proceed release file failed."])
+
+        for release_pkg in local_file_targets_name:
+            release_pkg_name = local_file_targets_name[release_pkg]
+            self.cache_install_target(self.workspace, release_pkg_name)
         
         shutil.rmtree(release_path)
 

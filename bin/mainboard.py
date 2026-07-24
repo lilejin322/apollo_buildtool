@@ -32,6 +32,7 @@ pkg_root = os.path.dirname(os.path.abspath(os.path.dirname(os.path.realpath(__fi
 sys.path.insert(0, pkg_root)
 
 from core.entry_point import EntryPoints
+from pkg_resources import parse_version
 from core.logging import init_logger, get_logger
 from core.common import get_config
 
@@ -42,6 +43,7 @@ from core import ErrCode
 
 # it may cause apt error
 #signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+VERSION = '9.0.0-rc-r1'
 
 
 def exit_handler():
@@ -72,7 +74,7 @@ class PackageBuilder(object):
         self.use_gpu = False
         self.parser = argparse.ArgumentParser(description='build tools of apollo')
         self.parser.add_argument(
-            '-v', '--version', action='version', version='9.0.0-beta-r2')
+            '-v', '--version', action='version', version=VERSION)
         subparsers = self.parser.add_subparsers(help='sub-command')
 
         if len(sys.argv) <= 1:
@@ -218,6 +220,19 @@ class PackageBuilder(object):
         return self.entry_points.execute(self.command, self.parms, \
             gpu=self.use_gpu, esd=self.use_esd)
 
+    def print_upgrade_msg(self):
+        """print upgrade message"""
+        if hasattr(self.entry_points.action_reference(self.command), "decider"):
+            instance = self.entry_points.action_reference(self.command)
+            meta_cli = instance.decider.metadata_cli
+            buildtool_latest_version = meta_cli.get_latest_version("buildtool")
+            latest_version = parse_version(buildtool_latest_version)
+            current_version = parse_version(VERSION)
+            if latest_version > current_version:
+                print(f"\033[33mNew version {buildtool_latest_version} of buildtool is available!\033[0m")
+                print("\033[33mYou should consider upgrading via the 'buildtool upgrade'\033[0m")
+        return
+
 
 
 def main():
@@ -226,6 +241,7 @@ def main():
     ret = obj.main()
     if ret != 0:
         return ret
+    obj.print_upgrade_msg()    
     logger.debug("Done, Enjoy!")
     return ret
 

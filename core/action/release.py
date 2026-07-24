@@ -68,8 +68,7 @@ class Action(core.action.Action):
 
         for i in range(len(self.packages)):
             if self.packages[i] not in self.targets_path:
-                logger.warning("Package in {} is invalid: \
-                    cyberfile not found!".format(self.packages))
+                logger.warning("Package in {} is invalid package".format(self.packages[i]))
                 continue
             process_packages.append(self.packages[i])
 
@@ -165,16 +164,20 @@ class Action(core.action.Action):
         
         # release
         for package in package_need_to_release:
-            repo_name, cyberfile = self.decider.metadata_cli.acquire_cyberfile(package)
+            _, cyberfile = self.decider.metadata_cli.acquire_cyberfile(package)
             if cyberfile is not None:
                 # apollo package
-                for repo in self.repositories:
-                    if repo_name == repo.name:
-                        version = repo.version
+                version = None
+                for repository in self.repositories:
+                    if self.decider.metadata_cli.valid_repository_check(package, \
+                            repository.version, repository.name):
+                        version = repository.version
                         break
                 if version is None:
-                    ErrCode.send_error(ErrCode.PackageAttrErr,
-                        ["Internal error: missing repository version"])
+                    # user defined repository version is not matched with remote
+                    # may caused by swtching repository version after building source package
+                    # just set the version as user defined repository version
+                    version = self.repositories[0].version
             else:
                 # user prebuilt package
                 version = self.repositories[0].version

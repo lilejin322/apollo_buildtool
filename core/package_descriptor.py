@@ -86,6 +86,26 @@ class PackageDesc(object):
         ]
         self_deps.sort()
         return "{}-{}-{}/{}".format(self_name, self_status, self_version, ",".join(self_deps))
+
+    def create_dummy_pkg(self, name, deps):
+        """
+        create dummy package
+        """
+        self.name = name
+
+        self.import_type = "src"
+
+        deps_attr = []
+
+        for i in deps:
+            if i == "":
+                continue
+            deps_attr.append(
+                DependAttr(i, None, "binary", "", None, None, None, None)
+            )
+        self.fulfill_info("local", "module", None, deps_attr)
+        self.status = Status.VALID
+        return
     
     def init_default_import_type(self):
         """init valid import type of all type module """

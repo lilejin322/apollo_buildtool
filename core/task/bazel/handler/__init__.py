@@ -16,6 +16,7 @@
 ###############################################################################
 """Common class and function during building procedure"""
 import os
+import re
 import subprocess
 import sys
 import time
@@ -25,7 +26,7 @@ from distutils.dir_util import copy_tree
 
 from core import ErrCode
 from core.logging import get_logger
-from core.common import get_template, get_config, get_setup
+from core.common import get_template, get_config, get_setup, generate_template
 from core.action import apollo_prefix
 from core.package_descriptor import PackageDesc
 from core.package_identification.identifier import PackageIdentification
@@ -84,9 +85,84 @@ class Procedure(object):
         self.replace_content_list = list()
         self.third_wrapper_info_list = list()
         self.runtime_lib_path = list()
+
+        self.dynamic_src = dict()
+        self.dynamic_bin = dict()
+        
         self.online = True
         self.installed_packages = None
         self._check_network()
+
+    def store_module_info(self, target, deps):
+        """
+        store module info
+        """
+        deps_list = [deps[i] for i in deps]
+        if target.type != "module" or target.import_type != "src":
+            return True
+        self.dynamic_src[target.name] = {
+            "name": target.name,
+            "path": target.real_src,
+            "depends": [i.name for i in list(filter(
+                lambda x: x.name in self.workspace_deps_dict, deps_list))]
+        }
+
+        for dep in deps_list:
+            if dep in self.dynamic_bin or dep.expose == "False":
+                continue
+            self.dynamic_bin[dep.name] = {
+                "name": dep.name,
+                "path": dep.real_src,
+                "targets": []
+            }
+            
+            if dep.type == "module":
+                # parse .BUILD to decode targets
+                pattern = r'(?<=name = ").*(?=")'
+                matcher = re.compile(pattern)
+                if not _is_deprecated_package(dep):
+                    pkg_meta_bazel_file = os.path.join(get_config("base", "apollo_root"),
+                        get_config("base", "package_meta_prefix"), dep.name, f"{dep.name}.BUILD")
+                else:
+                    pkg_meta_bazel_file = os.path.join(get_config("base", "apollo_root"), 
+                        "packages", f"{dep.name}", "latest", f"{dep.name}.BUILD")
+                if not os.path.exists(pkg_meta_bazel_file):
+                    ErrCode.send_error(
+                        ErrCode.FileIoErr,
+                        [f"Can not find the bazel meta of {dep.name}"],
+                        ["Considering rebuild or reinstall this package"],
+                    )
+                with open(pkg_meta_bazel_file, "r") as f:
+                    content = f.read()
+
+                results = matcher.findall(content)
+                if len(results) == 0:
+                    Error.send_error(
+                        ErrCode.FileIoErr,
+                        [f"Parse bazel meta of {dep.name} failed"],
+                        ["Considering rebuild or reinstall this package"],
+                    )
+                self.dynamic_bin[dep.name]["targets"] = [
+                    f"@{dep.name}//:{i}" for i in list(filter(None, results))]
+            else:
+                if dep.name in self.workspace_deps_dict:
+                    target = self.workspace_deps_dict[dep.name].split(",")
+                    self.dynamic_bin[dep.name]["targets"] += target
+        
+        return True
+
+    def render_dynamic_import_file(self, workspace):
+        """
+        render dynamic import file
+        """
+        template_vars = {
+            "status": 1,
+            "sources": [self.dynamic_src[i] for i in self.dynamic_src],
+            "binaries": [self.dynamic_bin[i] for i in self.dynamic_bin]
+        }
+        generated_file_path = os.path.join(workspace, "tools", "package", "dynamic_deps.bzl")
+
+        generate_template("dynamic_deps.bzl.in", generated_file_path, **template_vars)
 
     def _check_network(self):
         cmd = ["curl", get_config("api", "login"), ">/dev/null 2>&1"]

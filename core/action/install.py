@@ -82,6 +82,45 @@ class Action(core.action.Action):
                     "version": package.split("=")[1]
                 } for package in args.packages
         ]
+        candidates = set([i["name"] for i in self.packages])
+        available_packages = self.decider.metadata_cli.get_all_package_name()
+
+        # process module
+        if args.modules is not None and len(args.modules) > 0:
+            module_child = []
+            module_prefix = "module-"
+            for module in args.modules:
+                if not module.startswith(module_prefix):
+                    module = "{}{}".format(module_prefix, module)
+                if module not in available_packages:
+                    logger.warning("{} is not available in Apollo repo, skip".format(module))
+                    continue
+                module_repo = None
+                module_version = None
+                for repository in self.repositories:
+                    if self.decider.metadata_cli.valid_repository_check(
+                            module, repository.version, repository.name):
+                        module_version = repository.version
+                        module_repo = repository.name
+                        break  
+                if module_version is None:
+                    ErrCode.send_error(ErrCode.PackageAttrErr, 
+                        ["Can't find matched version of {} in repositories defined".format(module)])
+                ns, cyber_content = self.decider.metadata_cli.acquire_cyberfile(module)
+                merge_cyberfile = cyber_content[ns.index(module_repo)]
+                module_descs = self.identifier.identify_all(merge_cyberfile)
+                for i in module_descs:
+                    if i.version == module_version:
+                        for dep in i.deps:
+                            module_child.append(dep.name)
+                        break
+
+            for c in module_child:
+                if c not in candidates:
+                    self.packages.append(
+                        {"name": c, "version": ""}
+                    )
+        
         self._search_package_in_workspace(self.workspace)
 
         workspace_file_wrapper = Path(self.workspace) / "WORKSPACE"
@@ -104,7 +143,7 @@ class Action(core.action.Action):
         targets = new_targets
         packages = list()
         match_packages = list()
-        available_packages = self.decider.metadata_cli.get_all_package_name()
+        
         for i in self.packages:
             if "*" in i["name"]:
                 find_flag = False
@@ -138,20 +177,29 @@ class Action(core.action.Action):
                         exit=False
                     )
                     continue
-            package_descs = self.identifier.identify_all(package_cyberfiles)
-            for package_desc_instance in package_descs:
-                package_desc_instance.repository = repo
+            package_descs = []
+            if len(repo) > 1:
+                for repo_index in range(len(repo)):
+                    single_repo_package_descs = self.identifier.identify_all(package_cyberfiles[repo_index])
+                    for d in single_repo_package_descs:
+                        d.repository = repo[repo_index]
+                    package_descs = package_descs + single_repo_package_descs
+            else:
+                package_descs = self.identifier.identify_all(package_cyberfiles[0])
+                for package_desc_instance in package_descs:
+                    package_desc_instance.repository = repo[0]
             if i["version"] == "":
                 if i["name"].startswith("3rd"):
                     i["version"] = str(self.decider.metadata_cli.get_latest_version(i["name"]))
                 else:
                     for repository in self.repositories:
-                        if repository.name == repo:
+                        if self.decider.metadata_cli.valid_repository_check(
+                                i["name"], repository.version, repository.name):
                             i["version"] = repository.version
                             break
                     if i["version"] == "":
-                        ErrCode.send_error(ErrCode.AptErr,
-                            ["Internal error: during acquiring repository of {}".format(i["name"])])
+                        ErrCode.send_error(ErrCode.PackageAttrErr,
+                            ["Can't find matched version of {} in repositoires defined".format(i["name"])])
 
             if i["version"] not in [pkg_desc.version for pkg_desc in package_descs]:
                 ErrCode.send_error(
@@ -204,6 +252,9 @@ class Action(core.action.Action):
 
         targets += processed_package
 
+        for i in processed_package:
+            self.clean_local_target(i)
+
         # version determine
         self.decider(targets)
         version_results = self.decider.get_result()
@@ -236,7 +287,11 @@ class Action(core.action.Action):
     def install(self, pkg_desc, args):
         """install package"""
         logger.info("Process {}".format(pkg_desc.name))
-        self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.workspace, legacy=args.legacy, label="install")
+        self.router.find_preprocess_func(pkg_desc)(
+            pkg_desc, self.workspace, legacy=args.legacy, label="install")
+
+        if pkg_desc.type == "module" and not pkg_desc.name.startswith("3rd"):
+            self.cache_install_target(self.workspace, pkg_desc.name)
         return 0
 
     @staticmethod
@@ -244,5 +299,7 @@ class Action(core.action.Action):
         """add parser argument"""
         parser.add_argument("packages", nargs='*', 
             type=str.lstrip, help='Install the packages')
-        parser.add_argument('--legacy', action='store_true',
-            default=False, help='legacy way to install package')
+        parser.add_argument('-l', '--legacy', action='store_true',
+            default=False, help='install package without copy files to workspace')
+        parser.add_argument("-m", '--modules', nargs='*',
+            metavar='*', type=str.lstrip, help='Install the packages by specified modules')
