@@ -176,7 +176,7 @@ class Procedure(object):
 
     def _check_network(self):
         login_api = get_config("api", "login")
-        cmd = ["curl", login_api, ">/dev/null 2>&1"]
+        cmd = ["curl", "--max-time", "5", login_api, ">/dev/null 2>&1"]
         if subprocess.call(" ".join(cmd), shell=True) != 0:
             self.online = False
 

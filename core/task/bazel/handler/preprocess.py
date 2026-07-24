@@ -175,8 +175,10 @@ def _request_apollo_package_in_playgroud(pkg_desc, ignore_error=False):
                         pkg_desc.name)])
             else:
                 pass
-
-        response = request.get(download_url, additional=False, stream=True)
+        headers = { 
+            'User-Agent': 'curl/7.68.0'
+        }
+        response = request.get(download_url, additional=False, stream=True, headers=headers)
 
     install_deb_name = _return_deb_name(pkg_desc)
 
