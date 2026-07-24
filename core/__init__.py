@@ -106,9 +106,9 @@ def _request_user_id():
     return res_json.get('data', {}).get('user_id')
 
 
-def get_inode():
+def get_inode(file_path):
     """get inode"""
-    stat_info = os.stat(USER_HOME_PATH)
+    stat_info = os.stat(file_path)
     return stat_info.st_ino
 
 
@@ -121,11 +121,17 @@ def get_user_id():
                 if content:
                     user_id = content[0].strip('\n')
                     inode = content[1].strip('\n')
-                    if int(inode) == int(get_inode()):
+                    if int(inode) == int(get_inode(os.path.join(USER_HOME_PATH, '.apollo'))):
                         return user_id, inode
+                    # 临时兼容，在版本稳定一段时间后可下掉
+                    else:
+                        if int(inode) == int(get_inode(USER_HOME_PATH)):
+                            with open(USER_ID_PATH, 'w') as fn:
+                                fn.write(str(user_id) + '\n' + str(get_inode(os.path.join(USER_HOME_PATH, '.apollo'))))
+                            return user_id, get_inode(os.path.join(USER_HOME_PATH, '.apollo'))
         user_id = _request_user_id()
         if user_id:
-            inode = get_inode()
+            inode = get_inode(os.path.join(USER_HOME_PATH, '.apollo'))
             with open(USER_ID_PATH, 'w') as fn:
                 fn.write(str(user_id) + '\n' + str(inode))
             return user_id, inode

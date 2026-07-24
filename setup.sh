@@ -89,7 +89,7 @@ export APOLLO_PLUGIN_DESCRIPTION_PATH="${APOLLO_ENV_WORKROOT:-/apollo_workspace}
 
 [[ -z $APOLLO_DISTRIBUTION_VERSION ]] && export APOLLO_DISTRIBUTION_VERSION='9.0'
 
-COMMANDS_BUILDTOOL="pack deploy clean info test profile bootstrap release install login config init create build reinstall usage -h --help"
+COMMANDS_BUILDTOOL="pack deploy sampling clean info test profile bootstrap release install login config init create build reinstall usage -h --help"
 
 function _complete_func_buildtool() {
     COMPREPLY=()
