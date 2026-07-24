@@ -108,8 +108,13 @@ install_src_files(
     deps = [{}],
 )
 '''
-        install_targets = [f'"{i.real_src}:install"' for i in targets]
-        install_src_targets = [f'"{i.real_src}:install_src"' for i in targets]
+        install_targets = []
+        install_src_targets = []
+        for i in targets:
+            if i.workspace is None:
+                continue
+            install_targets.append(f'"{i.real_src}:install"')
+            install_src_targets.append(f'"{i.real_src}:install_src"')
 
         content = TPL_HDR + \
             TPL_INSTALL.format(",".join(install_targets)) + \

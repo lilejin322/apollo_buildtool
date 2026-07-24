@@ -166,13 +166,25 @@ class Action(core.action.Action):
 
                 matched = False
                 if version is None:
-                    for repository in self.repositories:
-                        if self.decider.metadata_cli.valid_repository_check(
-                                pkg_desc.name, repository.version, repository.name):
-                            version = repository.version
-                            pkg_desc.repository = repository.name
-                            matched = True
-                            break
+                    cmp_version = None
+                    if pkg_desc.name.startswith("3rd"):
+                        cmp_version = self.decider.metadata_cli.get_latest_version(pkg_desc.name)
+                    if cmp_version is not None:
+                        for repository in self.repositories:
+                            if self.decider.metadata_cli.valid_repository_check(
+                                    pkg_desc.name, cmp_version, repository.name):
+                                version = cmp_version
+                                pkg_desc.repository = repository.name
+                                matched = True
+                                break
+                    else:
+                        for repository in self.repositories:
+                            if self.decider.metadata_cli.valid_repository_check(
+                                    pkg_desc.name, repository.version, repository.name):
+                                version = repository.version
+                                pkg_desc.repository = repository.name
+                                matched = True
+                                break 
                 else:
                     for repository in self.repositories:
                         if self.decider.metadata_cli.valid_repository_check(

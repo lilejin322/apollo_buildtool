@@ -90,7 +90,7 @@ def _check_packages_is_installed(pkg_desc: PackageDesc):
         meta_path = os.path.join(get_config("base", "apollo_root"),
             get_config("base", "package_meta_prefix"), pkg_desc.name)
         deprecated_packages_path = os.path.join(get_config("base", "apollo_root"),
-            get_config("base", "deprecated_package_path"), pkg_desc.name, pkg_desc.version)
+            get_config("base", "deprecated_package_path"), pkg_desc.name)
         if not os.path.exists(meta_path) and not os.path.exists(deprecated_packages_path):
             return not_installed
         cyberfile_path = None
@@ -98,7 +98,7 @@ def _check_packages_is_installed(pkg_desc: PackageDesc):
         if os.path.exists(os.path.join(meta_path, "cyberfile.xml")):
             cyberfile_path = os.path.join(meta_path, "cyberfile.xml")
         else:
-            cyberfile_path = os.path.join(deprecated_packages_path, "cyberfile.xml")
+            cyberfile_path = os.path.join(deprecated_packages_path, "latest", "cyberfile.xml")
         try:
             cyberfile = ET.parse(cyberfile_path)
             cyberfile_version = cyberfile.find("version").text
@@ -395,7 +395,7 @@ def _update_meta_of_stored_package(pkg_desc):
     version.text = pkg_desc.version
     cyberfile_et.write(package_cyebrfile, encoding='utf-8') 
 
-def _install_package_before_proceed(pkg_desc: PackageDesc):
+def _install_package_before_proceed(pkg_desc: PackageDesc, **kwargs):
     procedure = Procedure()
     status = _check_packages_is_installed(pkg_desc)
     if status == installed:
@@ -419,9 +419,14 @@ def _install_package_before_proceed(pkg_desc: PackageDesc):
                         new_pkg_hash_val != "" and stored_pkg_hash_val != "":
                     _update_meta_of_stored_package(pkg_desc)
                     return
-            logger.info("update {} to version {}...".format(pkg_desc.name, pkg_desc.version))
-            _request_apollo_package_in_playgroud(pkg_desc)
-            _install_apollo_package_in_playgroud(pkg_desc) 
+                logger.info("update {} to version {}...".format(pkg_desc.name, pkg_desc.version))
+                _request_apollo_package_in_playgroud(pkg_desc)
+                _install_apollo_package_in_playgroud(pkg_desc)
+            else:
+                if "latest_3rd_pkg" in kwargs and kwargs["latest_3rd_pkg"] == True:
+                    logger.info("update {} to version {}...".format(pkg_desc.name, pkg_desc.version))
+                    _request_apollo_package_in_playgroud(pkg_desc)
+                    _install_apollo_package_in_playgroud(pkg_desc)
 
         logger.info("reinstall {} successfully ".format(pkg_desc.name))
         return
@@ -567,12 +572,12 @@ def module_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
                     )
                 pkg_desc.version = version
                 pkg_desc.repository = repo_name
-                _install_package_before_proceed(pkg_desc)
+                _install_package_before_proceed(pkg_desc, **kwargs)
                 pkg_desc.version = "local"
             logger.info(f"Using Source of {pkg_desc.name}")
         else:
             # install package
-            _install_package_before_proceed(pkg_desc)
+            _install_package_before_proceed(pkg_desc, **kwargs)
             # set package current path
             if "legacy" in kwargs and kwargs["legacy"]:
                 return 0
@@ -607,15 +612,15 @@ def module_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
                 subprocess.run(
                     "ln -snf {} {}".format(str(package_lib_path), str(dst_lib_dir_wrapper)), shell=True)
     else:
-        _install_package_before_proceed(pkg_desc)
+        _install_package_before_proceed(pkg_desc, **kwargs)
 
-        virtual_path = Path(os.path.join(workspace, pkg_desc.real_src_to_related_path()))
-        if workspace != os.getenv("APOLLO_PATH"):
-            if virtual_path.exists():
-                ErrCode.send_error(
-                    ErrCode.OccupiedErr,
-                    ["{} have been occupied".format(pkg_desc.name)],
-                )
+        # virtual_path = Path(os.path.join(workspace, pkg_desc.real_src_to_related_path()))
+        # if workspace != os.getenv("APOLLO_PATH"):
+        #     if virtual_path.exists():
+        #         ErrCode.send_error(
+        #             ErrCode.OccupiedErr,
+        #             ["{} have been occupied".format(pkg_desc.name)],
+        #         )
         
         dev_path = "dev/bazel/"
         if _is_deprecated_package(pkg_desc):
@@ -688,7 +693,7 @@ def module_wrapper_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """preprocess function for module-wrapper"""
     apollo_packages_path = Path(get_config("base", "apollo_package_path"))
     def common_wrapper_func():
-        _install_package_before_proceed(pkg_desc)
+        _install_package_before_proceed(pkg_desc, **kwargs)
         apollo_package_path = Path(get_config("base", "apollo_package_path"))
         src = pkg_desc.src
         if src != pkg_desc.real_src:
@@ -724,7 +729,7 @@ def module_wrapper_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
 
 def third_binary_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """preprocess function for third-binary"""
-    _install_package_before_proceed(pkg_desc)
+    _install_package_before_proceed(pkg_desc, **kwargs)
     dev_path = "dev/bazel/"
     apollo_packages_path = Path(get_config("base", "apollo_package_path"))
     apollo_root_path  = Path(get_config("base", "apollo_root"))
@@ -813,7 +818,7 @@ def third_wrapper_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
 
 def system_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """preprocess function for system"""
-    _install_package_before_proceed(pkg_desc)
+    _install_package_before_proceed(pkg_desc, **kwargs)
     dev_path = "dev/bazel/"
     dev_path_wrapper = Path(os.path.join(workspace, dev_path))
     if not dev_path_wrapper.exists():
@@ -843,7 +848,7 @@ def system_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
 # deprecated
 def pure_binary_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """preprocess function for pure-binary"""
-    _install_package_before_proceed(pkg_desc)
+    _install_package_before_proceed(pkg_desc, **kwargs)
     apollo_packages_path = Path(get_config("base", "apollo_package_path"))
     apollo_root_path  = Path(get_config("base", "apollo_root"))
     

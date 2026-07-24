@@ -65,15 +65,23 @@ class BazelBuildTask(BazelBaseTask):
             target=(pkg_desc.type == "module" and pkg_desc.import_type == "src")):
             return -1
 
-        if pkg_desc.type == "module" and pkg_desc.import_type == "src":
-            self.procedure.store_module_info(pkg_desc, childs)
-            self.procedure.render_dynamic_import_file(self.ws)
-
         logger.info("Preprocess {}".format(pkg_desc.name))
 
-        ret = self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.ws)
+        kwargs = args.__dict__.copy()
+        kwargs.pop("workspace")
+
+        ret = self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.ws, **kwargs)
         if ret:
             return ret
+
+        if pkg_desc.type == "module" and pkg_desc.import_type == "src":
+            if pkg_desc.workspace is not None:
+                self.procedure.store_module_info(pkg_desc, childs)
+                self.procedure.render_dynamic_import_file(self.ws)
+            else:
+                pkg_desc.import_type = "binary"
+                self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.ws)
+                pkg_desc.import_type = "src" 
 
         # if pkg_desc.type == "module" and pkg_desc.import_type == "src" and not install_dep_only:
         #     ret = install_procedure()
@@ -91,6 +99,8 @@ class BazelBuildTask(BazelBaseTask):
         self._generated_mock_install_target(self.ws, targets)
 
         for i in targets:
+            if i.workspace is None:
+                continue
             self._check_necessaries(Path(i.workspace))
         ret = self._install(args)
         if ret != 0:

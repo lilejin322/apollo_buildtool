@@ -127,8 +127,12 @@ class Action(core.action.Action):
             help="Specifies only install depends"
         )
         parser.add_argument(    
+            '--keep-3rd-latest', action='store_true', default=False,
+            help='Force using the latest version of 3rd packages'
+        )
+        parser.add_argument(    
             '--compatible-with-src', action='store_true', default=False,
-            help='output are compatible with the src env.'
+            help='The output are compatible with the src env'
         )
 
     def process_args(self):
@@ -419,7 +423,7 @@ class Action(core.action.Action):
                         builder_args=self.builder_args, known_options=self.known_options,
                         workspace=workspace, gpu=self.cyberfile_gpu, dbg=self.cyberfile_dbg,
                         dev=self.cyberfile_dev, memories=args.memories, jobs=args.jobs,
-                        compatible=args.compatible_with_src,
+                        compatible=args.compatible_with_src, latest_3rd_pkg=args.keep_3rd_latest,
                         childs=graph._get_node_by_name(target.name).return_all_childs(),
                         gpu_if_available=gpu_if_available, install_dep_only=self.args.install_dep_only
                     ), 

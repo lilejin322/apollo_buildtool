@@ -43,7 +43,7 @@ from core import ErrCode
 
 # it may cause apt error
 #signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-VERSION = '9.0.0-rc1-r3'
+VERSION = '9.0.0-rc1-r4'
 
 
 def exit_handler():
@@ -148,7 +148,9 @@ class PackageBuilder(object):
                 pass
         else:
             try:
-                if subprocess.call(['nvidia-smi >/dev/null 2>&1'], shell=True) == 0 and \
+                nv_cmd = 'nvidia-smi >/dev/null 2>&1'
+                ret_code = subprocess.call([nv_cmd], shell=True)
+                if (ret_code == 0 or ret_code == 14) and \
                         subprocess.check_output(
                             'nvidia-smi 2>/dev/null | grep "Driver Version"', shell=True) is not None:
                     self.use_gpu = True
