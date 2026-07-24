@@ -191,13 +191,13 @@ class Action(object):
         # use default setting
         # name.text = self.get_pkg_real_name(name.text, dev=True, dbg=False, gpu=False)
 
-        # for dep in root.findall("depend"):
-        #     if not dep.get("condition"):
-        #         continue
-        #     else:
-        #         pass
-        #         if not self.eval_condition(dep.get("condition"), gpu):
-        #             root.remove(dep)
+        for dep in root.findall("depend"):
+            if not dep.get("condition"):
+                continue
+            else:
+                pass
+                if not self.eval_condition(dep.get("condition"), gpu):
+                    root.remove(dep)
 
         if replace:
             cyberfile.write(cyberfile_path)

@@ -196,6 +196,9 @@ class Action(core.action.Action):
         else:
             self._search_package_in_workspace(workspace, gpu_if_available=gpu_if_available)
             for package in self.packages:
+                if package in self.targets_path:
+                    packages_path.append(package)
+                    continue
                 for target in self.targets_path:
                     if target.startswith(package):
                         packages_path.append(target)

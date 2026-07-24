@@ -72,7 +72,7 @@ class PackageBuilder(object):
         self.use_gpu = False
         self.parser = argparse.ArgumentParser(description='build tools of apollo')
         self.parser.add_argument(
-            '-v', '--version', action='version', version='9.0.0-alpha1-r12')
+            '-v', '--version', action='version', version='9.0.0-alpha2-r1')
         subparsers = self.parser.add_subparsers(help='sub-command')
 
         if len(sys.argv) <= 1:

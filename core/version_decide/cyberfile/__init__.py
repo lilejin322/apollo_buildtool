@@ -199,7 +199,7 @@ class MetaDataCli(object):
             return None
 
         if name not in self.cyberfile_source:
-            cyberfile_cahce = get_config("url", "cyberfile_cache")
+            cyberfile_cache = get_config("url", "cyberfile_cache")
             if os.path.exists(cyberfile_cache):
                 os.remove(cyberfile_cache)
             ErrCode.send_error(
