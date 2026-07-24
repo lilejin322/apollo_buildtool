@@ -143,11 +143,6 @@ class Graph(object):
 
             if next_level_desc is None:
                 next_level_desc = self._get_desc_by_name(dep_attr)
-
-            if pkg_desc.import_type == "binary" and next_level_desc.import_type == "src":
-                if pkg_desc.type == "module" and next_level_desc.type == "module":
-                    logger.warning("Parent with binary import type and child with src import type is not allow!")
-                    #sys.exit(-1)
             
             self._build_node(next_level_desc, node, targets)
         return
@@ -203,8 +198,4 @@ def build_order(packages, targets, version_result, desc_poll):
     """
     g = Graph(packages, targets, version_result, desc_poll)
     return g.topological_sort(), g
-    
-
-
-    
     

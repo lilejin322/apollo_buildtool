@@ -97,7 +97,6 @@ class LibEntryPoints(object):
 
     def load_entry_points(self):
         """load all lib entry points"""
-        logger.info("try to search plugin in local...")
         root = get_root()
         plugin_action_dirs = []
         for d in os.listdir(root):
@@ -105,11 +104,6 @@ class LibEntryPoints(object):
             action_wrapper = Path(os.path.join(root, d, "action"))
             if plugin_wrapper.exists() and action_wrapper.is_dir():
                 plugin_action_dirs.append(str(action_wrapper))
-        logger.info(
-            "plugin search complete:\n{}".format(
-                "\t\n".join(plugin_action_dirs)
-            )
-        )
         action_dirs = plugin_action_dirs + [self.path]
         for path in action_dirs:
             files = os.listdir(path)

@@ -1,9 +1,7 @@
 #/bin/bash
 
 APOLLO_LIB_PATH="/opt/apollo/neo/lib"
-sudo touch /etc/ld.so.conf.d/apollo.conf
-sudo chmod a+w /etc/ld.so.conf.d/apollo.conf
-echo "">/etc/ld.so.conf.d/apollo.conf
+LD_CACHE="/opt/apollo/neo/ld.cache"
 
 readdir() {
   for file in `ls -r $1`
@@ -17,5 +15,18 @@ readdir() {
     done
 }
 
-readdir $APOLLO_LIB_PATH
-sudo ldconfig 2>&1 >/dev/null
+if [ ! -e ${LD_CACHE} ]; then
+    sudo touch ${LD_CACHE}
+    sudo chmod a+w ${LD_CACHE}
+fi
+
+hash_val=`tree ${APOLLO_LIB_PATH} | sha256sum | awk '{print $1}'`
+if [ ! "${hash_val}" = "`cat ${LD_CACHE}`" ]; then
+    sudo echo "${hash_val}" > ${LD_CACHE}
+
+    sudo touch /etc/ld.so.conf.d/apollo.conf
+    sudo chmod a+w /etc/ld.so.conf.d/apollo.conf
+    echo "">/etc/ld.so.conf.d/apollo.conf
+    readdir $APOLLO_LIB_PATH
+    sudo ldconfig 2>&1 >/dev/null
+fi

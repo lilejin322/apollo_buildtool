@@ -65,13 +65,13 @@ class Action(core.action.Action):
                     cyberfile not found!".format(self.packages))
                 continue
             process_packages.append(self.packages[i])
-            if i < len(self.versions):
-                process_versions.append(self.versions[i])
+            if self.version is not None:
+                process_versions.append(self.version)
             else:
                 process_versions.append(self.default_version)
 
         if len(process_packages) == 0:
-            self.versions = [self.default_version for i in range(len(self.targets_path))]
+            process_versions = [self.default_version for i in range(len(self.targets_path))]
 
         # construct targets by targets' path
         targets = self.construct_targets_desc()
@@ -122,8 +122,8 @@ class Action(core.action.Action):
         parser.add_argument("-p", "--packages",
             nargs='*', metavar='*', type=str.lstrip,
             help="Specify the package path.")
-        parser.add_argument('-v', '--version', nargs='*', metavar='*',
-            type=str.lstrip, help='Specifies the version of package')
+        parser.add_argument('-v', '--version', nargs=1, type=str.lstrip,
+            help='Specifies the version of package')
         parser.add_argument(
             '-c', "--pre-clean", action='store_true', default=False,
             help='Clean the previous release files'
@@ -147,7 +147,7 @@ class Action(core.action.Action):
                     ["Package in {} is outside of the workspace {}".format(package, self.workspace)])
             self.packages.append(package)
 
-        self.versions = self.args.version if self.args.version is not None else []
+        self.version = self.args.version[0] if self.args.version is not None else None
 
         if self.args.pre_clean:
             if os.path.exists(os.path.join(self.workspace, release_path)):

@@ -190,18 +190,18 @@ class Action(core.action.Action):
             return ErrCode.ParamErr 
         workspace = self.workspaces[0]
 
+        packages_path = []
         if len(self.packages) == 0:
             self._search_package_in_workspace(workspace, gpu_if_available=gpu_if_available)
         else:
             self._search_package_in_workspace(workspace, gpu_if_available=gpu_if_available)
             for package in self.packages:
-                if package not in self.targets_path:
-                    logger.warning(
-                        "Package in {} is invalid: cyberfile not found or can not import as src type!".format(package)
-                    )
-                    self.packages.remove(package)
-                
-            #self.targets_path = self.packages
+                for target in self.targets_path:
+                    if target.startswith(package):
+                        packages_path.append(target)
+            if len(packages_path) == 0:
+                logger.warning("Can't find any module in the paths specified.")
+                logger.warning("Will build all module in the workspace.")
 
         if len(self.targets_path) < 1:
             ErrCode.send_error(
@@ -230,7 +230,7 @@ class Action(core.action.Action):
 
         targets = new_targets
         packages = list()
-        for i in self.packages:
+        for i in packages_path:
             if i not in path_to_desc:
                 logger.warning("{} is a invalid path".format(i))
                 continue
@@ -300,8 +300,6 @@ class Action(core.action.Action):
             )
             if ret_code != 0:
                 return ret_code
-                
-            self.set_ld_path()
 
         # clear all replicated '-dev' 
         # before this change name logic of install rule have been removed
