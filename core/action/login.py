@@ -17,14 +17,12 @@
 """
 config commnad
 """
-import os
-import sys
-import requests
 import hashlib
 
 from core.action import Action as CoreAction
-from core import get_config, save_token, ErrCode, get_user_id
+from core import get_config, save_token, ErrCode
 from core.logging import get_logger
+from core.request import RequestBase
 
 logger = get_logger('buildtool')
 
@@ -71,18 +69,15 @@ class Action(CoreAction):
         self.username = args.username[0]
         self.password = args.password[0]
 
-        user_id, _ = get_user_id()
-        login_url = f'{get_config("api", "login")}?user_id={user_id}'
+        login_url = get_config('api', 'login')
 
         json_data = {
             "username": self.username,
             "password": hashlib.md5(self.password.encode('utf8')).hexdigest(),
         }
 
-        header = {"Host": "apollo.baidu.com"}
-
-        response = requests.post(
-            url=login_url, headers=header, json=json_data)
+        request = RequestBase()
+        response = request.post(login_url, json=json_data)
 
         if response.status_code != 200:
             ErrCode.send_error(

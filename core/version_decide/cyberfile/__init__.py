@@ -15,23 +15,17 @@
 # limitations under the License.
 ###############################################################################
 """request metadata"""
-import shutil
-import subprocess
-import requests
-import json
-import hashlib
 import os
 import xml.etree.ElementTree as ET
 
-from functools import cmp_to_key
 from pkg_resources import parse_version
-from pathlib import Path
-from core import ErrCode, get_token, get_arch, get_codename, get_user_id
+from core import ErrCode, get_token, get_arch, get_codename
 from core.version_decide.semver import Version
 from core.common import get_config, get_logger
 from core.action import apollo_prefix
 from core.package_identification.identifier import singleton
 from core.task.bazel.handler import Procedure
+from core.request import RequestBase
 
 logger = get_logger('buildtool')
 
@@ -73,14 +67,14 @@ class MetaDataCli(object):
         if self.online:
             arch = get_arch()
             codename = get_codename()
-            user_id, _ = get_user_id()
 
             request_url_base = get_config("api", "meta_api")
-            metadata_request_url = "{}?repo_name={}&arch={}&codename={}&user_id={}".format(
+            metadata_request_url = "{}?repo_name={}&arch={}&codename={}".format(
                 request_url_base, ",".join([i.name for i in self.repositories]),
-                arch, codename, user_id
+                arch, codename
             )
-            meta_resp = requests.get(
+            request = RequestBase()
+            meta_resp = request.get(
                 url=metadata_request_url, headers=self.headers)
             if meta_resp.status_code != 200:
                 ErrCode.send_error(ErrCode.NetworkIoError, [
@@ -321,6 +315,15 @@ class MetaDataCli(object):
             ret_cyberfile.append(self.cyberfile_source[ns][name])
 
         return ret_namespace, ret_cyberfile
+
+    def valid_repository_check_online(self, name, version, repo_name):
+        """get package repository from remote"""
+        name = self.change_package_name(name)
+        if repo_name in self.raw_metadata_pool and name in self.raw_metadata_pool[repo_name]:
+            version_str = [i["Version"].strip() for i in self.raw_metadata_pool[repo_name][name]]
+            if version in version_str:
+                return True
+        return False
 
     def valid_repository_check(self, name: str, version: str, repo_name: str):
         """get package repository"""

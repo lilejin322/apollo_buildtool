@@ -24,7 +24,7 @@ from pathlib import Path
 from core.package_descriptor import Status
 from distutils.dir_util import copy_tree
 
-from core import ErrCode, get_user_id
+from core import ErrCode
 from core.logging import get_logger
 from core.common import get_template, get_config, get_setup, generate_template
 from core.action import apollo_prefix
@@ -175,8 +175,7 @@ class Procedure(object):
         generate_template("dynamic_deps.bzl.in", generated_file_path, **template_vars)
 
     def _check_network(self):
-        user_id, _ = get_user_id()
-        login_api = f'{get_config("api", "login")}?user_id={user_id}'
+        login_api = get_config("api", "login")
         cmd = ["curl", login_api, ">/dev/null 2>&1"]
         if subprocess.call(" ".join(cmd), shell=True) != 0:
             self.online = False

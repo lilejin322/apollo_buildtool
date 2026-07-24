@@ -21,13 +21,12 @@ map command
 import math
 import os
 import pathlib
-import requests
 import shutil
 import core.action
 from collections import OrderedDict
 from core import common
-from core import ErrCode, get_user_id
 from core.logging import get_logger
+from core.request import RequestBase
 
 logger = get_logger('buildtool')
 
@@ -142,11 +141,11 @@ class Action(core.action.Action):
         """
         get remote maps
         """
-        user_id, _ = get_user_id()
         entrypoint = common.get_config('api',
                                        'apollo_open_maps_api_entrypoint')
-        api = f'{entrypoint}/map_list?user_id={user_id}'
-        req = requests.get(api)
+        api = f'{entrypoint}/map_list'
+        request = RequestBase()
+        req = request.get(api)
         if req.status_code != 200:
             logger.error(f'failed to get remote maps: {req.text}')
             return []
@@ -260,9 +259,9 @@ class Action(core.action.Action):
                           ignore_errors=True)
         entrypoint = common.get_config('api',
                                        'apollo_open_maps_api_entrypoint')
-        user_id, _ = get_user_id()
-        api = f'{entrypoint}/map_download_url?map_name={map_name}&user_id={user_id}'
-        req = requests.get(api)
+        api = f'{entrypoint}/map_download_url?map_name={map_name}'
+        request = RequestBase()
+        req = request.get(api)
         if req.status_code != 200:
             logger.error(
                 f'failed to get download url for {map_name}: {req.text}')
@@ -277,7 +276,7 @@ class Action(core.action.Action):
 
         download_file = os.path.join(download_path, f'{map_name}.tar.gz')
         # TODO: hash verification and cache reuse
-        req = requests.get(download_url, stream=True)
+        req = request.get(download_url, additional=False, stream=True)
         with open(download_file, 'wb') as fout:
             for chunk in req.iter_content(chunk_size=1024):
                 if chunk:

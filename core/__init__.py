@@ -23,17 +23,15 @@ import shutil
 import getpass
 import sys
 import subprocess
-import requests
 from core.logging import get_logger
 from core.common import get_config
+
+from core.request import RequestBase
 
 logger = get_logger('buildtool')
 
 arch = None
 codename = None
-
-USER_HOME_PATH = os.path.expanduser('~')
-USER_ID_PATH = os.path.join(USER_HOME_PATH, '.apollo', 'user_id')
 
 
 def get_codename():
@@ -92,66 +90,17 @@ def save_token(token):
         f.write(token)
 
 
-def _request_user_id():
-    """request user id"""
-    register_api = get_config("api", "register_api")
-    timeout = int(get_config("setting", "request_timeout"))
-    res = requests.post(register_api, timeout=timeout)
-    if res.status_code != 200:
-        return None
-    res_json = res.json()
-    code = res_json.get('code')
-    if code != 200:
-        return None
-    return res_json.get('data', {}).get('user_id')
-
-
-def get_inode(file_path):
-    """get inode"""
-    stat_info = os.stat(file_path)
-    return stat_info.st_ino
-
-
-def get_user_id():
-    """get user id"""
-    try:
-        if os.path.exists(USER_ID_PATH):
-            with open(USER_ID_PATH, 'r') as fr:
-                content = fr.readlines()
-                if content:
-                    user_id = content[0].strip('\n')
-                    inode = content[1].strip('\n')
-                    if int(inode) == int(get_inode(os.path.join(USER_HOME_PATH, '.apollo'))):
-                        return user_id, inode
-                    # 临时兼容，在版本稳定一段时间后可下掉
-                    else:
-                        if int(inode) == int(get_inode(USER_HOME_PATH)):
-                            with open(USER_ID_PATH, 'w') as fn:
-                                fn.write(str(user_id) + '\n' + str(get_inode(os.path.join(USER_HOME_PATH, '.apollo'))))
-                            return user_id, get_inode(os.path.join(USER_HOME_PATH, '.apollo'))
-        user_id = _request_user_id()
-        if user_id:
-            inode = get_inode(os.path.join(USER_HOME_PATH, '.apollo'))
-            with open(USER_ID_PATH, 'w') as fn:
-                fn.write(str(user_id) + '\n' + str(inode))
-            return user_id, inode
-        return '', None
-    except Exception as ex:
-        return '', None
-
-
 def _request_pkg_version_available(repo, version):
     """_request_pkg_version_available"""
-    user_id, _ = get_user_id()
     query_api = get_config("api", "version_available_api")
     timeout = int(get_config("setting", "request_timeout"))
     params = {
         "pkg_name": "buildtool",
         "pkg_ver": version,
         "repo_name": repo,
-        "user_id": user_id,
     }
-    res = requests.get(query_api, params=params, timeout=timeout)
+    request = RequestBase()
+    res = request.get(query_api, params=params, timeout=timeout)
     if res.status_code != 200:
         return res.status_code, None
     res_json = res.json()
@@ -199,6 +148,7 @@ class ErrCode(enum.Enum):
     OccupiedErr = 400014
     UnittestFailedErr = 400015
     NetworkIoError = 400016
+    HeadersErr = 40017
     UnknownErr = 440000
 
     def send_error(error_code, hints=None, solutions=None, exit=True):

@@ -171,7 +171,7 @@ class Action(core.action.Action):
                         cmp_version = self.decider.metadata_cli.get_latest_version(pkg_desc.name)
                     if cmp_version is not None:
                         for repository in self.repositories:
-                            if self.decider.metadata_cli.valid_repository_check(
+                            if self.decider.metadata_cli.valid_repository_check_online(
                                     pkg_desc.name, cmp_version, repository.name):
                                 version = cmp_version
                                 pkg_desc.repository = repository.name
@@ -179,7 +179,7 @@ class Action(core.action.Action):
                                 break
                     else:
                         for repository in self.repositories:
-                            if self.decider.metadata_cli.valid_repository_check(
+                            if self.decider.metadata_cli.valid_repository_check_online(
                                     pkg_desc.name, repository.version, repository.name):
                                 version = repository.version
                                 pkg_desc.repository = repository.name
@@ -187,7 +187,7 @@ class Action(core.action.Action):
                                 break 
                 else:
                     for repository in self.repositories:
-                        if self.decider.metadata_cli.valid_repository_check(
+                        if self.decider.metadata_cli.valid_repository_check_online(
                                         pkg_desc.name, version, repository.name):
                             pkg_desc.repository = repository.name
                             matched = True

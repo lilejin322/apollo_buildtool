@@ -20,12 +20,11 @@ import os
 import json
 import shutil
 import subprocess
-import requests
 from pathlib import Path
 from distutils.dir_util import copy_tree
 import xml.etree.ElementTree as ET
 
-from core import ErrCode, get_token, get_arch, get_codename, get_user_id
+from core import ErrCode, get_token, get_arch, get_codename
 from core.common import get_config
 from core.package_descriptor import Status
 from core.action import apollo_prefix
@@ -50,6 +49,7 @@ from core.task.bazel.handler import (
 from core.package_identification.identifier import PackageIdentification
 from core import AptContext, AptStatus
 from core.version_decide.cyberfile import MetaDataCli
+from core.request import RequestBase
 
 logger = get_logger('buildtool')
 
@@ -136,25 +136,25 @@ def _request_apollo_package_in_playgroud(pkg_desc, ignore_error=False):
     token = get_token()
     arch = get_arch()
     codename = get_codename()
-    user_id, _ = get_user_id()
 
     headers = {"Host": "apollo.baidu.com",
                "Authorization": "Bearer {}".format(token)}
-    request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}&user_id={}".format(
+    request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}".format(
         get_config("api", "download_query"), pkg_desc.repository, arch, codename,
-        _get_apollo_package_full_name(pkg_desc), pkg_desc.version, user_id,
+        _get_apollo_package_full_name(pkg_desc), pkg_desc.version
     )
+    request = RequestBase()
 
-    response = requests.get(
+    response = request.get(
         url=request_url, headers=headers)
 
     if response.status_code != 200:
         # fallback to legacy download url
-        request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}&user_id={}".format(
+        request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}".format(
             get_config("api", "download"), pkg_desc.repository, arch, codename,
-            _get_apollo_package_full_name(pkg_desc), pkg_desc.version, user_id,
+            _get_apollo_package_full_name(pkg_desc), pkg_desc.version
         )
-        response = requests.get(
+        response = request.get(
             url=request_url, headers=headers, stream=True)
     else:
         try:
@@ -176,7 +176,7 @@ def _request_apollo_package_in_playgroud(pkg_desc, ignore_error=False):
             else:
                 pass
 
-        response = requests.get(download_url, stream=True)
+        response = request.get(download_url, additional=False, stream=True)
 
     install_deb_name = _return_deb_name(pkg_desc)
 
@@ -287,6 +287,26 @@ def _install_apollo_package_in_playgroud(pkg_desc):
                                ],
                                )
 
+    # need to clean user prebuilt package or legacy package
+    meta_file = os.path.join(meta_path, "meta.txt")
+    if (not os.path.exists(prerm) or not os.path.exists(postrm)) and os.path.exists(meta_file):
+        file_should_be_deleted = []
+        with open(meta_file, 'r') as f:
+            file_should_be_deleted = f.read().split("\n")
+            file_should_be_deleted = [
+                i.split(":")[-1] for i in file_should_be_deleted]
+        for i in file_should_be_deleted:
+            ele = os.path.join(get_config("base", "apollo_root"), i)
+            if os.path.exists(ele):
+                subprocess.run(f"rm -rf {ele}", shell=True)
+        src_path = ele.replace(get_config("base", "apollo_root"), 
+                os.path.join(get_config("base", "apollo_root"), "src"))
+        include_path = ele.replace(get_config("base", "apollo_root"), 
+                os.path.join(get_config("base", "apollo_root"), "include"))
+        shutil.rmtree(src_path)
+        shutil.rmtree(include_path)
+        shutil.rmtree(meta_path)
+
     cmd = "sudo {}".format(preinst_in_package)
     p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     if p.returncode != 0:
@@ -340,17 +360,17 @@ def _request_hash_of_package(pkg_desc):
     token = get_token()
     arch = get_arch()
     codename = get_codename()
-    user_id, _ = get_user_id()
     headers = {"Host": "apollo.baidu.com",
                "Authorization": "Bearer {}".format(token)}
-    request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}&user_id={}".format(
+    request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}".format(
         get_config("api", "attr_query"), pkg_desc.repository, arch, codename,
-        _get_apollo_package_full_name(pkg_desc), pkg_desc.version, user_id
+        _get_apollo_package_full_name(pkg_desc), pkg_desc.version
     )
     if pkg_desc.version == "local" and pkg_desc.repository is None:
         raise Exception(f"package {pkg_desc.name} invalid")
+    request = RequestBase()
 
-    response = requests.get(
+    response = request.get(
         url=request_url, headers=headers)
     if response.status_code != 200:
         ErrCode.send_error(

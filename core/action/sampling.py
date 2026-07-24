@@ -53,6 +53,7 @@ class Action(core.action.Action):
             return ErrCode.AptErr
 
         sh_args = " ".join(args.files)
+        sh_args = sh_args + f" -p {args.process_name[0]}"
 
         subprocess.run(f"bash {sampling_script} {sh_args}", shell=True)
 
@@ -62,4 +63,8 @@ class Action(core.action.Action):
     def add_argument(parser):
         """add parser argument"""
         parser.add_argument("files", nargs='*',
-            type=str.lstrip, help='=sampling files' )
+            type=str.lstrip, help='=sampling files')
+
+        parser.add_argument(
+            "-p", "--process_name", nargs=1, type=str.lstrip,
+            default="mainboard", help="process name to sampling")
