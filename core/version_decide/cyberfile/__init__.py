@@ -21,9 +21,11 @@ import requests
 import json
 import hashlib
 import os
+import xml.etree.ElementTree as ET
 
-from pathlib import Path
 from functools import cmp_to_key
+from pkg_resources import parse_version
+from pathlib import Path
 from core import ErrCode
 from core.version_decide.semver import Version
 from core.common import get_config, get_logger
@@ -110,10 +112,15 @@ class MetaDataCli(object):
                 ]
 
                 # parse version
+                versions = [parse_version(i["Version"].strip()) for i in self.raw_metadata_pool[name]]
+                version_dict = {}
+                for i in range(len(versions)):
+                    version_dict[versions[i]] = self.raw_metadata_pool[name][i]["Version"].strip()
+                versions.sort()
+
                 self.raw_version_pool[name] = [
-                    Version.parse(i["Version"].strip()) for i in self.raw_metadata_pool[name]
+                    Version.parse(version_dict[i]) for i in versions
                 ]
-    
         else:
             for _, name in enumerate(self.raw_metadata_pool):
                 # parse cyberfile path
@@ -125,13 +132,15 @@ class MetaDataCli(object):
                 ]
 
                 # parse version
+                versions = [parse_version(i["Version"].strip()) for i in self.raw_metadata_pool[name]]
+                version_dict = {}
+                for i in range(len(versions)):
+                    version_dict[versions[i]] = self.raw_metadata_pool[name][i]["Version"].strip()
+                versions.sort()
+
                 self.raw_version_pool[name] = [
-                    Version.parse(i["Version"].strip()) for i in self.raw_metadata_pool[name]
+                    Version.parse(version_dict[i]) for i in versions
                 ]
-        
-        for k in self.raw_version_pool:
-            self.raw_version_pool[k].sort(
-                key = cmp_to_key(lambda x, y: 1 if len(x._text) > len(y._text) else x > y))
 
         if self.need_cached:
             cyberfile_cahce_dir = "/".join(
@@ -147,28 +156,37 @@ class MetaDataCli(object):
                 self.cyberfile_source = json.loads(f.read())
 
     def _cached_all_cyberfile(self, cache_path):
-        logger.info("update the local cache, this process will take a while...")
-        for name in self.raw_cyberfile_path_pool:
-            request_urls = self.raw_cyberfile_path_pool[name]
-            for request_url in request_urls:
-                cyberfile_resp = requests.get(request_url) 
-                
-                if cyberfile_resp.status_code != 200:
-                    ErrCode.send_error(
-                        ErrCode.NetworkIoError,
-                        ["request {} failed".format(cyberfile_name)],
-                        exit=False)
-                if name not in self.raw_cyberfile_pool:
-                    self.raw_cyberfile_pool[name] = list()
-                self.raw_cyberfile_pool[name].append(cyberfile_resp.text)
-                self.cyberfile_source[name] = "<root>\n" + "\n".join(self.raw_cyberfile_pool[name]) + "\n</root>"
+        logger.info("update the local cache")
+        cyberfiles_meta_url = get_config("url", "cyberfiles_meta")
+        cyberfiles_resp = requests.get(cyberfiles_meta_url) 
+        if cyberfiles_resp.status_code != 200:
+            ErrCode.send_error(
+                ErrCode.NetworkIoError,
+                ["fetch metadata of cyberfiles failed"],
+                ["may due to the network condition, please try again"],
+                exit=True)
+        root = ET.fromstring(cyberfiles_resp.text)
+        elems = root.iterfind("package")
+        for elem in elems:
+            name = None
+            for label in elem.iterfind("name"):
+                name = self.change_package_name(label.text)
+            if name is None:
+                ErrCode.send_error(
+                    ErrCode.NetworkIoError,
+                    ["metadata of cyberfiles invalid"],
+                    exit=True)
+            if name not in self.raw_cyberfile_pool:
+                self.raw_cyberfile_pool[name] = list()
+            self.raw_cyberfile_pool[name].append(
+                ET.tostring(elem, encoding='utf-8').decode("utf-8"))
+        for name in self.raw_cyberfile_pool:
+            self.cyberfile_source[name] = "<root>\n" + "\n".join(
+                            self.raw_cyberfile_pool[name]) + "\n</root>"
+        
         with open(cache_path, "w+", encoding="utf-8") as f:
             f.write(json.dumps(self.cyberfile_source))
-        logger.info("update local cache complete")
-
-    def init_all_cyberfile(self):
-        for name in self.raw_cyberfile_path_pool:
-            self.acquire_cyberfile(name)
+        logger.info("update complete")
 
     def get_all_package_name(self):
         return [name.replace(apollo_prefix, "") for name in self.raw_cyberfile_path_pool]
