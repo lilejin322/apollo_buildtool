@@ -412,7 +412,25 @@ class Action(core.action.Action):
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                     subprocess.run("sudo {}".format(postrm),
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        
+        try:
+            tools_path = os.path.join(workspace, "tools")
+            model_download_script = os.path.join(workspace, "scripts/model_download.sh")
+            if not os.path.islink(tools_path) and os.path.exists(model_download_script):
+                onnx_query_res = subprocess.check_outputonnx_query_res = subprocess.check_output(
+                    'find modules/perception/data/models -name "*.onnx"', 
+                    shell=True, encoding="utf-8")
+                pd_query_res = subprocess.check_output(
+                    'find modules/perception/data/models -name "*.pdmodel"', 
+                    shell=True, encoding="utf-8")
+                if onnx_query_res == "" or pd_query_res == "":
+                    logger.info("Models are not installed, downloading...")
+                    subprocess.run(f'bash {model_download_script}', shell=True)
+                    logger.info("Models downloaded")
+        except:
+            logger.info("Models are not installed, downloading...")
+            subprocess.run(f'bash {model_download_script}', shell=True)
+            logger.info("Models downloaded")
+
         self.set_ld_path()
 
         for index, target in enumerate(targets):

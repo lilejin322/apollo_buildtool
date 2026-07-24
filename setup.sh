@@ -88,7 +88,10 @@ export APOLLO_PLUGIN_INDEX_PATH="${APOLLO_DISTRIBUTION_HOME}/share/cyber_plugin_
 export APOLLO_PLUGIN_LIB_PATH="${APOLLO_LIB_PATH}"
 export APOLLO_PLUGIN_DESCRIPTION_PATH="${APOLLO_ENV_WORKROOT:-/apollo_workspace}:${APOLLO_DISTRIBUTION_HOME}"
 
-[[ -z $APOLLO_DISTRIBUTION_VERSION ]] && export APOLLO_DISTRIBUTION_VERSION='9.0'
+lsb_release -c | grep focal >/dev/null 2>&1
+[[ $? == 0 ]] && export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+
+[[ -z $APOLLO_DISTRIBUTION_VERSION ]] && export APOLLO_DISTRIBUTION_VERSION='10.0'
 
 COMMANDS_BUILDTOOL="pack deploy sampling clean info test profile bootstrap release install login config init create build reinstall usage -h --help"
 

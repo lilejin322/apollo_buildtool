@@ -126,23 +126,20 @@ class RequestBase:
 
     def add_client_version_info(self, method, url, params=None):
         """add client version info"""
+        version = os.getenv('APOLLO_DISTRIBUTION_VERSION', get_config('setting', 'version'))
         query = urlparse(url).query
         if query:
             querys = {i.split('=')[0]: i.split('=')[1] for i in query.split('&')}
             if not querys.get('client_version'):
-                version = get_config('setting', 'version')
                 url += f'&client_version={version}'
         else:
             if method == 'get':
                 if params:
                     if not params.get('client_version'):
-                        version = get_config('setting', 'version')
                         params['client_version'] = version
                 else:
-                    version = get_config('setting', 'version')
                     params = {'client_version': version}
             else:
-                version = get_config('setting', 'version')
                 url += f'?client_version={version}'
         return url, params
 

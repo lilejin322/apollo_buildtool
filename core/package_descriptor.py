@@ -157,7 +157,7 @@ class PackageDesc(object):
                     # Assume that import type only have two optinos: src and binary
                     if self.type == "module":
                         if self.name not in record_package:
-                            logger.info("use src code of {} in workspace".format(self.name))
+                            # logger.info("use src code of {} in workspace".format(self.name))
                             record_package.add(self.name)
                         self.import_type = "src"
                     else:

@@ -40,6 +40,7 @@ from core.task.bazel.handler.preprocess import _get_stored_hash_of_package, _req
 
 logger = get_logger('buildtool')
 
+
 def get_action_name():
     """get action name"""
     return "base"
@@ -60,8 +61,10 @@ class Context(object):
         self.args = args
         self.workspace = workspace
 
+
 class Repository(object):
     """demonstrate the information of repository"""
+
     def __init__(self, name, version):
         self.name = name
         self.version = version
@@ -81,10 +84,8 @@ class Action(object):
         """
         if not pkg_desc.type == "module":
             return
-        packages_meta = os.path.join(
-            get_config("base", "apollo_root"),
-            get_config("base", "package_meta_prefix")
-        )
+        packages_meta = os.path.join(get_config("base", "apollo_root"),
+                                     get_config("base", "package_meta_prefix"))
         meta = os.path.join(packages_meta, pkg_desc.name)
 
         if not os.path.exists(meta):
@@ -104,19 +105,28 @@ class Action(object):
             stored_pkg_hash_val = _get_stored_hash_of_package(pkg_desc)
             if new_pkg_hash_val == stored_pkg_hash_val and \
                     new_pkg_hash_val != "" and stored_pkg_hash_val != "":
-                logger.info(f"No removal of {pkg_desc.name} due to hash consistency")
+                logger.info(
+                    f"No removal of {pkg_desc.name} due to hash consistency")
                 return
 
-        logger.info(f"Requiring {pkg_desc.name}={pkg_desc.version}, Removing {pkg_desc.name}={version}")
+        logger.info(
+            f"Requiring {pkg_desc.name}={pkg_desc.version}, Removing {pkg_desc.name}={version}"
+        )
 
         prerm = "{}/prerm".format(meta)
         postrm = "{}/postrm".format(meta)
-        if not os.path.exists(prerm) or not os.path.exists(postrm):
+        in_virtual_env = False
+        if os.environ.get('AEM_HOST_VIRTUALENV', None):
+            in_virtual_env = True
+
+        if not os.path.exists(prerm) or not os.path.exists(
+                postrm) or in_virtual_env:
             file_should_be_deleted = []
             with open(os.path.join(meta, "meta.txt"), 'r') as f:
                 file_should_be_deleted = f.read().split("\n")
                 file_should_be_deleted = [
-                    i.split(":")[-1] for i in file_should_be_deleted]
+                    i.split(":")[-1] for i in file_should_be_deleted
+                ]
             for i in file_should_be_deleted:
                 ele = os.path.join(get_config("base", "apollo_root"), i)
                 if os.path.exists(ele):
@@ -125,15 +135,16 @@ class Action(object):
         else:
             subprocess.run("sudo {}".format(prerm),
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            subprocess.run("sudo {}".format(postrm),
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            if os.path.exists(postrm):
+                subprocess.run("sudo {}".format(postrm),
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
     def cache_install_target(self, workspace, target_name):
         """
         cache install target
         """
-        user_installation = os.path.join(workspace, "dev",
-                get_config("cache", "user_installed_package"))
+        user_installation = os.path.join(
+            workspace, "dev", get_config("cache", "user_installed_package"))
         os.makedirs(os.path.dirname(user_installation), exist_ok=True)
         if not os.path.exists(user_installation):
             with open(user_installation, "w+") as f:
@@ -161,32 +172,43 @@ class Action(object):
         raise NotImplementedError
 
     def _search_package_in_workspace(self, workspace, **kwargs):
-        self._search_cyberfile(workspace, **dict(kwargs, workspace = workspace))
-        
+        self._search_cyberfile(workspace, **dict(kwargs, workspace=workspace))
+
     def _search_cyberfile(self, root, **kwargs):
         files = os.listdir(root)
         has_cyberfile = False
 
-        if "cyberfile.xml" in files or ("cyberfile_cpu.xml" in files and "cyberfile_gpu.xml" in files):
+        if "cyberfile.xml" in files or ("cyberfile_cpu.xml" in files
+                                        and "cyberfile_gpu.xml" in files):
             self.targets_path.append(root)
             has_cyberfile = True
-                
+
         if has_cyberfile:
-            cyberfile_wrapper = Path(root) / "cyberfile.xml"  
+            cyberfile_wrapper = Path(root) / "cyberfile.xml"
             if cyberfile_wrapper.is_symlink():
                 cyberfile_wrapper.unlink()
             if not cyberfile_wrapper.exists():
                 if "gpu_if_available" in kwargs and kwargs["gpu_if_available"]:
-                    os.symlink(os.path.join(root, "cyberfile_gpu.xml"), str(cyberfile_wrapper))
+                    os.symlink(os.path.join(root, "cyberfile_gpu.xml"),
+                               str(cyberfile_wrapper))
                 else:
-                    os.symlink(os.path.join(root, "cyberfile_cpu.xml"), str(cyberfile_wrapper)) 
+                    os.symlink(os.path.join(root, "cyberfile_cpu.xml"),
+                               str(cyberfile_wrapper))
             return
         for f in files:
             if f.startswith("."):
                 continue
             f_desc = Path(os.path.join(root, f))
             if f_desc.is_dir() and not f_desc.is_symlink():
+                workspace = kwargs["workspace"]
+                f_suffix = os.path.relpath(str(f_desc), workspace)
+                if f_suffix.startswith("bazel") or \
+                        f_suffix.startswith("output") or \
+                        f_suffix.startswith("tools") or \
+                        f_suffix.startswith("third_party") :
+                    continue
                 self._search_cyberfile(str(f_desc), **kwargs)
+
             if f_desc.is_dir() and f_desc.is_symlink():
                 workspace = kwargs["workspace"]
                 f_suffix = os.path.relpath(str(f_desc), workspace)
@@ -216,24 +238,20 @@ class Action(object):
         """set ldconfig config file of search path"""
         root_path = os.path.dirname(
             os.path.abspath(
-                os.path.dirname(
-                    os.path.dirname(os.path.realpath(__file__))
-                )
-            )
-        )
-        update_ldconfig_script_wrapper = Path(root_path) / "scripts" / "update_dylib.sh"
+                os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+        update_ldconfig_script_wrapper = Path(
+            root_path) / "scripts" / "update_dylib.sh"
         if not update_ldconfig_script_wrapper.exists():
-            ErrCode.send_error(
-                ErrCode.FileIoErr, 
-                ["Can not find {}".format(str(update_ldconfig_script_wrapper))]
-            )
+            ErrCode.send_error(ErrCode.FileIoErr, [
+                "Can not find {}".format(str(update_ldconfig_script_wrapper))
+            ])
 
         else:
             output = subprocess.check_output(
-                "bash {}".format(update_ldconfig_script_wrapper), shell=True
-            ).decode() 
+                "bash {}".format(update_ldconfig_script_wrapper),
+                shell=True).decode()
             logger.debug(output)
-        
+
     def get_pkg_real_name(self, name, dev=False, dbg=False, gpu=False):
         """Get real package name by install parameters"""
         new_name = name
@@ -249,13 +267,14 @@ class Action(object):
         """clean bazel building cache"""
         logger.info("Clean build cache, it will take a while...")
         cmd = [BAZEL_EXECUTABLE] + ["clean", "--expunge", ">/dev/null 2>&1"]
-        ret = subprocess.run(" ".join(cmd), shell=True, stderr=subprocess.STDOUT)
+        ret = subprocess.run(" ".join(cmd),
+                             shell=True,
+                             stderr=subprocess.STDOUT)
         if ret.returncode != 0:
             ErrCode.send_error(
                 ErrCode.BazelErr,
                 ["Clean build cache failed, ignore and continue to build."],
-                exit=False
-            )
+                exit=False)
 
     def eval_condition(self, condition, gpu):
         """evaluate which depends is consist with condition"""
@@ -266,13 +285,16 @@ class Action(object):
         else:
             return False
 
-    def setup_cyberfile(self, cyberfile_path, replace=True, dev=False, dbg=False, gpu=False):
+    def setup_cyberfile(self,
+                        cyberfile_path,
+                        replace=True,
+                        dev=False,
+                        dbg=False,
+                        gpu=False):
         """Setup final cyberfile by install parameters. """
         if dev and dbg:
-            ErrCode.send_error(
-                ErrCode.UnknownErr,
-                ["Build in both dev and dbg mode!"]
-            )
+            ErrCode.send_error(ErrCode.UnknownErr,
+                               ["Build in both dev and dbg mode!"])
 
         cyberfile = ET.parse(cyberfile_path)
         root = cyberfile.getroot()
@@ -303,17 +325,19 @@ class Action(object):
             cyberfile_wrapper = Path(target.workspace) / "cyberfile.xml"
             if not cyberfile_wrapper.exists():
                 ErrCode.send_error(
-                    ErrCode.FileIoErr, 
-                    ["{} cyberfile is not existed".format(target.name)]
-                )
+                    ErrCode.FileIoErr,
+                    ["{} cyberfile is not existed".format(target.name)])
 
             _, _, new_cyberfile_xml_bytes = self.setup_cyberfile(
-                str(cyberfile_wrapper), replace=False, 
-                dev=dev, dbg=dbg, gpu=gpu
-            )
+                str(cyberfile_wrapper),
+                replace=False,
+                dev=dev,
+                dbg=dbg,
+                gpu=gpu)
 
             new_target = PackageDesc(target.workspace)
-            self.identifier.identify(new_target, new_cyberfile_xml_bytes.decode("utf-8"))
+            self.identifier.identify(new_target,
+                                     new_cyberfile_xml_bytes.decode("utf-8"))
             path_to_desc[target.workspace] = new_target
             new_targets.append(new_target)
         return new_targets, path_to_desc
@@ -323,7 +347,8 @@ class Action(object):
         workspace = os.getcwd()
         if os.path.exists(os.path.join(workspace, ".workspace.json")):
             try:
-                repositories_define_path = os.path.join(workspace, ".workspace.json")
+                repositories_define_path = os.path.join(
+                    workspace, ".workspace.json")
                 repositories_define = None
                 with open(repositories_define_path, "r") as f:
                     repositories_define = json.loads(f.read())
@@ -334,27 +359,47 @@ class Action(object):
             except Exception as ex:
                 ErrCode.send_error(
                     ErrCode.PackageAttrErr,
-                    ["parse .workspace.json error: {}".format(str(ex))]
-                )
+                    ["parse .workspace.json error: {}".format(str(ex))])
         else:
             self.metacli = MetaDataCli()
+            core_repo = "apollo-core"
+            preview_repo = "apollo-core"
+            ubuntu_code_name = subprocess.check_output(
+                "lsb_release -cs", shell=True).decode("utf-8").strip()
+            preview_repo += f"-{ubuntu_code_name}"
             if platform.machine() == "aarch64":
-                self.metacli.run([Repository("apollo-core-arm", "latest")])
-                latest = self.metacli.get_latest_version("cyber").__str__()
-                self.repositories.append(Repository("apollo-core-arm", latest))
+                core_repo += "-arm"
+                preview_repo += "-arm"
+                if ubuntu_code_name != "focal":
+                    ErrCode.send_error(
+                        ErrCode.ArchErr,
+                        [f"not support {ubuntu_code_name} on aarch"]
+                    )
             else:
-                self.metacli.run([Repository("apollo-core", "latest")])
-                latest = self.metacli.get_latest_version("cyber").__str__()
-                self.repositories.append(Repository("apollo-core", latest))
-            
+                if ubuntu_code_name != "focal" and \
+                        ubuntu_code_name != "bionic" and \
+                        ubuntu_code_name != "jammy":
+                    ErrCode.send_error(
+                        ErrCode.ArchErr,
+                        [f"not support {ubuntu_code_name} on amd64"]
+                    )
+            self.metacli.run([Repository(core_repo, "latest")])
+            core_latest = self.metacli.get_latest_version("cyber").__str__()
+            self.metacli.running = False
+            self.metacli.run([Repository(preview_repo, "latest")])
+            preview_latest = self.metacli.get_latest_version("cyber").__str__()
+            self.repositories.append(Repository(preview_repo, preview_latest))
+            self.repositories.append(Repository(core_repo, core_latest))
+            self.metacli.running = False
+            self.metacli.run(self.repositories)
             # with open(os.path.join(workspace, ".workspace.json"), "w+") as f:
             #     f.write(json.dumps({"apollo-core": {"version": latest}}))
 
         if len(self.repositories) == 0:
             ErrCode.send_error(
-                    ErrCode.PackageAttrErr,
-                    ["can find any repository in .workspace.json"]
-                )
+                ErrCode.PackageAttrErr,
+                ["can find any repository in .workspace.json"]
+            )
 
     def construct_targets_desc(self, **kwargs):
         """construct local package cyberfile"""
@@ -364,16 +409,16 @@ class Action(object):
         for target_path in self.targets_path:
             desc = PackageDesc(target_path)
 
-            self.identifier.identify(desc, node=None, ignore_mismatch="ignore_mismatch" in kwargs)
+            self.identifier.identify(desc,
+                                     node=None,
+                                     ignore_mismatch="ignore_mismatch"
+                                     in kwargs)
             if desc.name in target_set:
-                ErrCode.send_error(
-                    ErrCode.PackageAttrErr,
-                    [
-                        "multiple {} exist in following paths: ".format(desc.name),
-                        "\t{}".format(target_path),
-                        "\t{}".format(target_set[desc.name].workspace)
-                    ]
-                )
+                ErrCode.send_error(ErrCode.PackageAttrErr, [
+                    "multiple {} exist in following paths: ".format(desc.name),
+                    "\t{}".format(target_path), "\t{}".format(
+                        target_set[desc.name].workspace)
+                ])
 
             if desc.status == Status.INVALID:
                 #ErrCode.send_error(
@@ -384,25 +429,26 @@ class Action(object):
                 #    ]
                 #)
                 continue
-            
+
             # support workspace imported 3rd package
             if desc.type != "module":
                 continue
-            
+
             targets.append(desc)
             target_set[desc.name] = desc
-        
+
         return targets
 
     def _check_package_location(self, package, workspace):
         if package.workspace:
-            attribute_path = os.path.join(workspace, package.real_src_to_related_path())
+            attribute_path = os.path.join(workspace,
+                                          package.real_src_to_related_path())
             if attribute_path != package.workspace:
-                ErrCode.send_error(
-                    ErrCode.PackageAttrErr,
-                    ["Package {} is not in {}".format(package.name, attribute_path)],
-                    exit=False
-                )
+                ErrCode.send_error(ErrCode.PackageAttrErr, [
+                    "Package {} is not in {}".format(package.name,
+                                                     attribute_path)
+                ],
+                                   exit=False)
                 return False
         return True
 
@@ -411,22 +457,20 @@ class Action(object):
         cpplint_file_name = "CPPLINT.cfg"
         rc_files_stored_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "bazel"
-        )
-        top_level_rc_file = os.path.join(rc_files_stored_path, top_level_rc_file_name)
+            "bazel")
+        top_level_rc_file = os.path.join(rc_files_stored_path,
+                                         top_level_rc_file_name)
         workspace_rc_dst = os.path.join(workspace, top_level_rc_file_name)
         if not os.path.isfile(top_level_rc_file):
-            ErrCode.send_error(
-                ErrCode.PackageAttrErr,
-                ["Cannot find Apollo rc files."],
-                ["Reinstall buildtool may solve this problem."],
-                exit=True
-            )
+            ErrCode.send_error(ErrCode.PackageAttrErr,
+                               ["Cannot find Apollo rc files."],
+                               ["Reinstall buildtool may solve this problem."],
+                               exit=True)
         if Path(workspace_rc_dst).is_symlink():
             Path(workspace_rc_dst).unlink()
         if not os.path.isfile(workspace_rc_dst):
-             shutil.copy(top_level_rc_file, workspace_rc_dst)
-        
+            shutil.copy(top_level_rc_file, workspace_rc_dst)
+
         try:
             generate_apollo_rc_file()
         except Exception as ex:
@@ -439,30 +483,23 @@ class Action(object):
         cpplint_file = os.path.join(rc_files_stored_path, cpplint_file_name)
         dst = os.path.join(workspace, cpplint_file_name)
         if not os.path.isfile(cpplint_file):
-            ErrCode.send_error(
-                ErrCode.PackageAttrErr,
-                ["Cannot find Apollo cpplint files."],
-                ["Reinstall buildtool may solve this problem."],
-                exit=True
-            )
+            ErrCode.send_error(ErrCode.PackageAttrErr,
+                               ["Cannot find Apollo cpplint files."],
+                               ["Reinstall buildtool may solve this problem."],
+                               exit=True)
         if Path(dst).is_symlink():
             Path(dst).unlink()
         if not os.path.isfile(dst):
-             shutil.copy(cpplint_file, dst)
-
+            shutil.copy(cpplint_file, dst)
 
     def _check_status_before_build(self, packages):
         for package in packages:
-            if package.status != Status.VALID: 
-                ErrCode.send_error(
-                    ErrCode.PackageAttrErr,
-                    [
-                        "package with {} status can not be processed! package={}".format(
-                            package.status, package.name
-                        )
-                    ],
-                    exit=False
-                )
+            if package.status != Status.VALID:
+                ErrCode.send_error(ErrCode.PackageAttrErr, [
+                    "package with {} status can not be processed! package={}".
+                    format(package.status, package.name)
+                ],
+                                   exit=False)
                 return False
             package.check_real_src()
         return True
@@ -475,7 +512,7 @@ class Action(object):
                 known_opt = "--config=gpu"
             else:
                 logger.info("GPU is not available. Use CPU mode.")
-                known_opt = "--config=cpu" 
+                known_opt = "--config=cpu"
         elif not args.cpu and not args.gpu:
             if gpu_available:
                 # default using gpu mode to build
@@ -484,7 +521,7 @@ class Action(object):
                 known_opt = "--config=cpu"
         else:
             if args.cpu:
-                known_opt = "--config=cpu" 
+                known_opt = "--config=cpu"
             else:
                 if gpu_available:
                     known_opt = "--config=gpu"

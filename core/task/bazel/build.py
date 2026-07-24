@@ -28,11 +28,8 @@ from core import ErrCode
 from core.task.bazel import BAZEL_EXECUTABLE
 from core.package_descriptor import Status
 from core.task.bazel import BazelBaseTask
-from core.task.bazel.handler import (
-    Procedure,
-    _package_name_to_dir,
-    _is_deprecated_package
-)
+from core.task.bazel.handler import (Procedure, _package_name_to_dir,
+                                     link_target, _is_deprecated_package)
 from core.task.bazel.handler.router import Router
 from core.task.bazel.handler.postprocess import postprocess_after_compile
 from pathlib import Path
@@ -60,17 +57,18 @@ class BazelBuildTask(BazelBaseTask):
         childs = context.args.childs
         install_dep_only = context.args.install_dep_only
 
-        logger.info("Import depends...")
+        # logger.info("Import depends...")
         if not self.procedure.import_depends(self.ws, childs = childs,
             target=(pkg_desc.type == "module" and pkg_desc.import_type == "src")):
             return -1
 
-        logger.info("Preprocess {}".format(pkg_desc.name))
+        logger.info("Processing {}".format(pkg_desc.name))
 
         kwargs = args.__dict__.copy()
         kwargs.pop("workspace")
 
-        ret = self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.ws, **kwargs)
+        ret = self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.ws,
+                                                         **kwargs)
         if ret:
             return ret
 
@@ -81,14 +79,14 @@ class BazelBuildTask(BazelBaseTask):
             else:
                 pkg_desc.import_type = "binary"
                 self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.ws)
-                pkg_desc.import_type = "src" 
+                pkg_desc.import_type = "src"
 
         # if pkg_desc.type == "module" and pkg_desc.import_type == "src" and not install_dep_only:
         #     ret = install_procedure()
         #     if ret != 0:
         #         return ret
-        
-        logger.info("PostProcess {}".format(pkg_desc.name))
+
+        # logger.info("PostProcess {}".format(pkg_desc.name))
         self.router.find_postprocess_func(pkg_desc)(pkg_desc, self.ws)
         return 0
 
@@ -139,14 +137,13 @@ class BazelBuildTask(BazelBaseTask):
         # thus we just add all linkopt to build target
         lib_paths = []
         lib_path_prefix = os.path.join(
-            get_config("base", "apollo_root"),
-            get_config("base", "library_path_prefix"))
+            '/opt/apollo/neo', get_config("base", "library_path_prefix"))
         for d in os.listdir(lib_path_prefix):
             if d.startswith("3rd-"):
                 lib_paths.append(os.path.join(lib_path_prefix, d))
         lib_paths.sort()
         lib_paths.reverse()
-        
+
         host_link_opt = []
         if platform.machine() == "aarch64":
             tegra_path = "/usr/lib/aarch64-linux-gnu/tegra"
@@ -156,10 +153,14 @@ class BazelBuildTask(BazelBaseTask):
 
         for i in ["/usr/local/lib", "/usr/lib"]:
             host_link_opt += ['--host_linkopt="-L{}"'.format(i)]
-            host_link_opt += ['--linkopt="-L{}"'.format(i)] 
-            
-        host_link_opt += ['--host_linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
-        host_link_opt += ['--linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
+            host_link_opt += ['--linkopt="-L{}"'.format(i)]
+
+        host_link_opt += [
+            '--host_linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths
+        ]
+        host_link_opt += [
+            '--linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths
+        ]
 
         bazel_args = args.builder_args + host_link_opt
         known_options = args.known_options
@@ -182,11 +183,29 @@ class BazelBuildTask(BazelBaseTask):
 
         logger.info("Compiling whole workspace...")
 
-        # bazel_args = self._check_args(build_path, bazel_args)
-        args_str = self._add_basic_args(bazel_args, known_options, nproc, args.memories, args.jobs)
+        # TODO: refactor this
+        if os.environ.get('APOLLO_ENV_ROOT'):
+            if not os.path.islink(
+                    os.path.join(os.environ.get('APOLLO_ENV_WORKROOT'),
+                                 'tools')):
+                link_target(
+                    os.path.join(os.environ.get('APOLLO_ENV_WORKROOT'),
+                                 'tools'),
+                    f'{os.environ.get("APOLLO_ENV_ROOT")}/opt/apollo/neo/src/tools'
+                )
+            else:
+                link_target(
+                    '/opt/apollo/neo/packages/bazel-extend-tools/latest/src',
+                    f'{os.environ.get("APOLLO_ENV_ROOT")}/opt/apollo/neo/src/tools'
+                )
 
-        mock_path = os.path.dirname(os.path.join(
-            "dev", get_config("cache", "mock_install_target_file")))
+        # bazel_args = self._check_args(build_path, bazel_args)
+        args_str = self._add_basic_args(bazel_args, known_options, nproc,
+                                        args.memories, args.jobs)
+
+        mock_path = os.path.dirname(
+            os.path.join("dev", get_config("cache",
+                                           "mock_install_target_file")))
 
         cmd_install_src = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
                           ["{}:mock_install_src".format(mock_path)] + ["--", install_src_parm]
@@ -194,25 +213,29 @@ class BazelBuildTask(BazelBaseTask):
         cmd_install = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
                       ["{}:mock_install".format(mock_path)] + ["--", install_parm]
 
-        ret = subprocess.run(" ".join(cmd_install_src), stderr=subprocess.STDOUT, shell=True)
+        ret = subprocess.run(" ".join(cmd_install_src),
+                             stderr=subprocess.STDOUT,
+                             shell=True)
         if ret.returncode != 0:
-            ErrCode.send_error(
-                ErrCode.BazelErr,
-                ["Compiling and install failed!"],
-                ["Please checkout source code or build file by following bazel error hints"],
-                exit=False
-            )
+            ErrCode.send_error(ErrCode.BazelErr, [
+                "Compiling and install failed!"
+            ], [
+                "Please checkout source code or build file by following bazel error hints"
+            ],
+                               exit=False)
             return ret.returncode
 
-        ret = subprocess.run(" ".join(cmd_install), stderr=subprocess.STDOUT, shell=True)
+        ret = subprocess.run(" ".join(cmd_install),
+                             stderr=subprocess.STDOUT,
+                             shell=True)
         if ret.returncode != 0:
-            ErrCode.send_error(
-                ErrCode.BazelErr,
-                ["Compiling and install failed!"],
-                ["Please checkout the build file by following bazel error hints"],
-                exit=False
-            )
+            ErrCode.send_error(ErrCode.BazelErr, [
+                "Compiling and install failed!"
+            ], [
+                "Please checkout the build file by following bazel error hints"
+            ],
+                               exit=False)
             return ret.returncode
-        
+
         os.chdir(cwd)
         return 0

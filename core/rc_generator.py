@@ -352,8 +352,6 @@ def reset_apollo_bazelrc():
     """Reset file that contains customized config settings."""
     if Path(_APOLLO_BAZELRC).is_symlink():
         Path(_APOLLO_BAZELRC).unlink()
-    if os.path.isfile(_APOLLO_BAZELRC):
-        return _EXIT_SUCCESS
     open(_APOLLO_BAZELRC, 'w', encoding="utf-8").close()
     return _CONTINUE
 

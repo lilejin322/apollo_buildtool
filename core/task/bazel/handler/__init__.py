@@ -36,7 +36,13 @@ logger = get_logger('buildtool')
 
 delimiter = "#######################################APOLLO#######################################"
 
-def progressbar(it, length, prefix="", out=sys.stdout,):
+
+def progressbar(
+    it,
+    length,
+    prefix="",
+    out=sys.stdout,
+):
     """get the progressbar output of procedure"""
     count = length
     start = time.time()
@@ -44,18 +50,22 @@ def progressbar(it, length, prefix="", out=sys.stdout,):
         size = int(os.get_terminal_size().columns / 4)
     except:
         size = 5
+
     def show(j):
         if count == 0:
             return
         x = int(size * j / count)
         remaining = ((time.time() - start) / j) * (count - j)
-        
+
         mins, sec = divmod(remaining, 60)
         time_str = f"{int(mins):02}:{sec:05.2f}"
-        
-        print(f"  {prefix}[{'#'*x}{('.'*(size-x))}] {j}/{count} Est wait {time_str}",
-            end='\r', file=out, flush=True)
-        
+
+        print(
+            f"  {prefix}[{'#'*x}{('.'*(size-x))}] {j}/{count} Est wait {time_str}",
+            end='\r',
+            file=out,
+            flush=True)
+
     for i, item in enumerate(it):
         yield item
         show(i + 1)
@@ -65,19 +75,20 @@ def progressbar(it, length, prefix="", out=sys.stdout,):
     except:
         pass
 
+
 def _is_deprecated_package(pkg_desc):
-    normal_path = os.path.join(
-        get_config("base", "apollo_root"),
-        get_config("base", "package_meta_prefix"),
-        pkg_desc.name
-    )
+    normal_path = os.path.join(get_config("base", "apollo_root"),
+                               get_config("base", "package_meta_prefix"),
+                               pkg_desc.name)
     if os.path.exists(normal_path):
         return False
     return True
 
+
 @singleton
 class Procedure(object):
     """Procedure class is to store all build procedure"""
+
     def __init__(self):
         self.init_func_info_list = list()
         self.workspace_deps_list = list()
@@ -88,7 +99,7 @@ class Procedure(object):
 
         self.dynamic_src = dict()
         self.dynamic_bin = dict()
-        
+
         self.online = True
         self.installed_packages = None
         self._check_network()
@@ -101,10 +112,15 @@ class Procedure(object):
         if target.type != "module" or target.import_type != "src":
             return True
         self.dynamic_src[target.name] = {
-            "name": target.name,
-            "path": target.real_src,
-            "depends": [i.name for i in list(filter(
-                lambda x: x.name in self.workspace_deps_dict, deps_list))]
+            "name":
+            target.name,
+            "path":
+            target.real_src,
+            "depends": [
+                i.name for i in list(
+                    filter(lambda x: x.name in self.workspace_deps_dict,
+                           deps_list))
+            ]
         }
         self.dynamic_src[target.name]["depends"].sort()
 
@@ -118,17 +134,25 @@ class Procedure(object):
                 "path": dep.real_src,
                 "targets": []
             }
-            
+
             if dep.type == "module":
                 # parse .BUILD to decode targets
                 pattern = r'(?<=name = ").*(?=")'
                 matcher = re.compile(pattern)
                 if not _is_deprecated_package(dep):
-                    pkg_meta_bazel_file = os.path.join(get_config("base", "apollo_root"),
-                        get_config("base", "package_meta_prefix"), dep.name, f"{dep.name}.BUILD")
+                    pkg_meta_bazel_file = os.path.join(
+                        get_config("base", "apollo_root"),
+                        get_config("base", "package_meta_prefix"), dep.name,
+                        f"{dep.name}.BUILD")
                 else:
-                    pkg_meta_bazel_file = os.path.join(get_config("base", "apollo_root"), 
-                        "packages", f"{dep.name}", "latest", f"{dep.name}.BUILD")
+                    pkg_meta_bazel_file = os.path.join('/opt/apollo/neo',
+                                                       'packages',
+                                                       f'{dep.name}', 'latest',
+                                                       f'{dep.name}.BUILD')
+                    if not os.path.exists(pkg_meta_bazel_file):
+                        pkg_meta_bazel_file = os.path.join(
+                            '/opt/apollo/neo', 'share/packages', f'{dep.name}',
+                            f'{dep.name}.BUILD')
                 if not os.path.exists(pkg_meta_bazel_file):
                     ErrCode.send_error(
                         ErrCode.FileIoErr,
@@ -152,13 +176,15 @@ class Procedure(object):
                     if repo[0].isdigit():
                         repo = "{}-{}".format("placeholder", repo)
                 self.dynamic_bin[dep.name]["targets"] = [
-                    f"@{repo}//:{i}" for i in list(filter(None, results))]
+                    f"@{repo}//:{i}" for i in list(filter(None, results))
+                ]
             else:
                 if dep.name in self.workspace_deps_dict:
-                    non_module_target = self.workspace_deps_dict[dep.name].split(",")
+                    non_module_target = self.workspace_deps_dict[
+                        dep.name].split(",")
                     self.dynamic_bin[dep.name]["targets"] += non_module_target
-                
-            self.dynamic_bin[dep.name]["targets"].sort() 
+
+            self.dynamic_bin[dep.name]["targets"].sort()
         return True
 
     def render_dynamic_import_file(self, workspace):
@@ -170,14 +196,17 @@ class Procedure(object):
             "sources": [self.dynamic_src[i] for i in self.dynamic_src],
             "binaries": [self.dynamic_bin[i] for i in self.dynamic_bin]
         }
-        generated_file_path = os.path.join(workspace, "tools", "package", "dynamic_deps.bzl")
+        generated_file_path = os.path.join(workspace, "tools", "package",
+                                           "dynamic_deps.bzl")
 
-        generate_template("dynamic_deps.bzl.in", generated_file_path, **template_vars)
+        generate_template("dynamic_deps.bzl.in", generated_file_path,
+                          **template_vars)
 
     def _check_network(self):
         login_api = get_config("api", "login")
         cmd = ["curl", "--max-time", "5", login_api, ">/dev/null 2>&1"]
         if subprocess.call(" ".join(cmd), shell=True) != 0:
+            logger.warning("Can't connect with the server, use offline mode")
             self.online = False
 
     def get_network_status(self):
@@ -191,12 +220,13 @@ class Procedure(object):
         dpkg_formatted_output = list()
 
         cmd = "dpkg -l"
-        dpkg_raw_output_list = subprocess.check_output(cmd, shell=True).decode("utf-8").split("\n")
-        
+        dpkg_raw_output_list = subprocess.check_output(
+            cmd, shell=True).decode("utf-8").split("\n")
+
         for single_line in dpkg_raw_output_list:
             if single_line.startswith("ii"):
                 dpkg_raw_output_pakcages.append(single_line)
-        
+
         for package_line in dpkg_raw_output_pakcages:
             package_info_list = list()
             package_raw_info_list = package_line.split(" ")
@@ -223,20 +253,19 @@ class Procedure(object):
         """add workspace depend"""
         if dep is None:
             return
-        if dep in [self.workspace_deps_dict[k] for k in self.workspace_deps_dict]:
+        if dep in [
+                self.workspace_deps_dict[k] for k in self.workspace_deps_dict
+        ]:
             duplicate_dep = None
             for k in self.workspace_deps_dict:
                 if self.workspace_deps_dict[k] == dep:
                     duplicate_dep = k
                     break
-            ErrCode.send_error(
-                ErrCode.ModuleConflictErr,
-                [
-                    "multiple external packages duplicated",
-                    "{} -> {}".format(duplicate_dep, dep),
-                    "{} -> {}".format(pkg_desc.name, dep),
-                ]
-            )
+            ErrCode.send_error(ErrCode.ModuleConflictErr, [
+                "multiple external packages duplicated",
+                "{} -> {}".format(duplicate_dep, dep),
+                "{} -> {}".format(pkg_desc.name, dep),
+            ])
         self.workspace_deps_dict[pkg_desc.name] = dep
         #self.workspace_deps_list.append(dep)
 
@@ -255,7 +284,7 @@ class Procedure(object):
         bazel_skylib_in_targets = False
 
         if index < len(targets):
-            for i in range(index+1):
+            for i in range(index + 1):
                 if "grpc" in targets[i].name:
                     grpc_in_targets = True
                 if "rules-proto" in targets[i].name:
@@ -265,17 +294,15 @@ class Procedure(object):
 
         workspace_wrapper = Path(workspace_file_path)
         if not workspace_wrapper.exists():
-            ErrCode.send_error(
-                ErrCode.FileIoErr,
-                ["Can not find {}".format(workspace_file_path)],
-                exit=False
-            )
+            ErrCode.send_error(ErrCode.FileIoErr,
+                               ["Can not find {}".format(workspace_file_path)],
+                               exit=False)
             return False
         workspace_content = None
         with workspace_wrapper.open("r+", encoding="utf-8") as f:
             workspace_content = f.readlines()
         for i in range(len(workspace_content)):
-            while "\n" in workspace_content[i]: 
+            while "\n" in workspace_content[i]:
                 workspace_content[i] = workspace_content[i].replace("\n", "")
 
         if delimiter in workspace_content:
@@ -284,50 +311,67 @@ class Procedure(object):
                 if delimiter in workspace_content[i]:
                     generated_content_index.append(i)
             if len(generated_content_index) == 2:
-                start_index, end_index = generated_content_index[0], generated_content_index[1]
+                start_index, end_index = generated_content_index[
+                    0], generated_content_index[1]
                 up_content = []
                 down_content = []
                 if start_index > 0:
-                    up_content += workspace_content[: start_index]
+                    up_content += workspace_content[:start_index]
                 if end_index < len(workspace_content) - 1:
-                    down_content += workspace_content[end_index + 1: ]
+                    down_content += workspace_content[end_index + 1:]
             elif len(generated_content_index) == 0:
                 pass
             else:
-                ErrCode.send_error(
-                    ErrCode.FileIoErr,
-                    ["Process WORKSPACE file error!"],
-                    exit=False
-                )
+                ErrCode.send_error(ErrCode.FileIoErr,
+                                   ["Process WORKSPACE file error!"],
+                                   exit=False)
                 return False
         else:
             up_content = workspace_content
             down_content = []
 
         user_up_content = "\n".join(up_content)
-        user_down_content = "\n".join(down_content) 
+        user_down_content = "\n".join(down_content)
 
         init_content = get_template("workspace.in")
+        env_vars = {
+            'APOLLO_ENV_ROOT': '',
+        }
+        init_content = init_content.format(**{**env_vars, **os.environ})
         init_content += '\nload("//dev/bazel:deps.bzl", "init_deps")\ninit_deps()\n'
-        
+
+        if os.path.join(os.path.dirname(workspace_file_path),
+                        "tools/ros/ros_configure.bzl"):
+            init_content += 'load("//tools/ros:ros_configure.bzl", "ros_configure")\n'
+            init_content += 'ros_configure(name = "ros")\n'
+
         if grpc_in_targets:
-            grpc_init_content = 'load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")\ngrpc_deps()\nload("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")\ngrpc_extra_deps()\n'
+            grpc_init_content = ""
+            if os.path.join(os.path.dirname(workspace_file_path),
+                            "tools/external/openssl.BUILD"):
+                grpc_init_content = grpc_init_content + 'new_local_repository(name = "boringssl",'
+                grpc_init_content = grpc_init_content + ' build_file = "tools/external/openssl.BUILD",'
+                grpc_init_content = grpc_init_content + ' path = "/opt/apollo/pkgs/openssl")\n'
+            grpc_init_content = grpc_init_content + 'load("@com_github_grpc_grpc//bazel:grpc_deps.bzl",'
+            grpc_init_content = grpc_init_content + ' "grpc_deps")\ngrpc_deps()\nload("@com_github_grpc_grpc//'
+            grpc_init_content = grpc_init_content + 'bazel:grpc_extra_deps.bzl", "grpc_extra_deps")'
+            grpc_init_content = grpc_init_content + '\ngrpc_extra_deps()\n'
         else:
             grpc_init_content = ''
-        
+
         if rule_proto_in_targets:
             rule_proto_content = 'load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")\nrules_proto_dependencies()\nrules_proto_toolchains()\n'
         else:
             rule_proto_content = ''
-        
+
         if bazel_skylib_in_targets:
             bazel_skylib_content = 'load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")\nbazel_skylib_workspace()\n'
         else:
-            bazel_skylib_content = '' 
-        
+            bazel_skylib_content = ''
+
         workspace_content = delimiter + init_content + bazel_skylib_content + grpc_init_content + rule_proto_content + delimiter + "\n"
         workspace_content = user_up_content + "\n" + workspace_content + user_down_content
-        
+
         with workspace_wrapper.open("w+", encoding="utf-8") as f:
             f.write(workspace_content)
 
@@ -335,18 +379,22 @@ class Procedure(object):
         content = get_setup()
         if content is None:
             return False
-        with open(os.path.join(apollo_root, "setup.sh"), "w+", encoding="utf-8") as f:
+        with open(os.path.join(apollo_root, "setup.sh"),
+                  "w+",
+                  encoding="utf-8") as f:
             f.write(content)
         return True
-    
+
     def init_workspace_deps(self, childs_dict):
         """import workspace depends"""
         childs = [childs_dict[i].name for i in childs_dict]
         self.workspace_deps_list = []
         for child in childs:
             if child in self.workspace_deps_dict:
-                self.workspace_deps_list.append(self.workspace_deps_dict[child])
-        self.workspace_deps_list = ",".join(self.workspace_deps_list).split(",")
+                self.workspace_deps_list.append(
+                    self.workspace_deps_dict[child])
+        self.workspace_deps_list = ",".join(
+            self.workspace_deps_list).split(",")
         self.workspace_deps_list.sort()
 
     def import_depends(self, workspace_path: str, **kwargs):
@@ -359,27 +407,27 @@ class Procedure(object):
         if deps_file_wrapper.exists():
             deps_file_wrapper.unlink()
 
-        load_headers = "\n".join(
-            [i.load_header for i in self.third_wrapper_info_list]
-        ) if len(self.third_wrapper_info_list) > 0 else "\n"
+        load_headers = "\n".join([
+            i.load_header for i in self.third_wrapper_info_list
+        ]) if len(self.third_wrapper_info_list) > 0 else "\n"
 
         init_func_content = "def clean_dep(dep):\n    return str(Label(dep))\n"
 
-        init_func_content += "\n".join(
-            [i.content for i in self.init_func_info_list]
-        ) if len(init_func_content) > 0 else "\n"
+        init_func_content += "\n".join([
+            i.content for i in self.init_func_info_list
+        ]) if len(init_func_content) > 0 else "\n"
 
         entry_func = "def init_deps():\n"
-        entry_func_content = "\n".join(
-            ["    {}()".format(i.name) for i in self.third_wrapper_info_list]
-        ) if len(self.third_wrapper_info_list) > 0 else "    pass"
-        entry_func_content += "\n" 
-        entry_func_content += "\n".join(
-            ["    {}()".format(i.name) for i in self.init_func_info_list]
-        ) if len(self.init_func_info_list) > 0 else ""
+        entry_func_content = "\n".join([
+            "    {}()".format(i.name) for i in self.third_wrapper_info_list
+        ]) if len(self.third_wrapper_info_list) > 0 else "    pass"
+        entry_func_content += "\n"
+        entry_func_content += "\n".join([
+            "    {}()".format(i.name) for i in self.init_func_info_list
+        ]) if len(self.init_func_info_list) > 0 else ""
         if entry_func_content == "":
             entry_func_content = "    pass"
-        
+
         content = load_headers + "\n" + init_func_content + "\n" + entry_func + entry_func_content
         with deps_file_wrapper.open("w+", encoding="utf-8") as f:
             f.write(content)
@@ -389,12 +437,15 @@ class Procedure(object):
 
 class ThirdBinaryInfo(object):
     """third-wrapper package information"""
+
     def __init__(self, load_header, name):
         self.load_header = load_header
         self.name = name
 
+
 class InitWrapper(object):
     """inif function info wrapper"""
+
     def __init__(self, content, name):
         self.content = content
         self.name = name
@@ -412,7 +463,7 @@ def link_target(src: str, dst: str):
     if dst_wrapper.exists():
         logger.warning("Path {} is occupied".format(dst))
         return False
-    
+
     try:
         subprocess.run("sudo ln -snf {} {}".format(src, dst), shell=True)
         # os.symlink(src, dst)
@@ -420,6 +471,7 @@ def link_target(src: str, dst: str):
         logger.warning("Create soft link error: {}".format(str(ex)))
         return False
     return True
+
 
 def func_name_check(func_name: str, pkg_desc: PackageDesc):
     """check function name is valid and modify it"""
@@ -437,8 +489,9 @@ def func_name_check(func_name: str, pkg_desc: PackageDesc):
         func_name = func_name.replace(".", "")
     return func_name
 
+
 def _read_origin_package_name(pkg_desc: PackageDesc):
-    cyberfile_in_ws_content = None 
+    cyberfile_in_ws_content = None
     package_cyberfile = Path(pkg_desc.workspace) / "cyberfile.xml"
     with package_cyberfile.open("r", encoding="utf-8") as f:
         cyberfile_in_ws_content = f.read()
@@ -447,12 +500,11 @@ def _read_origin_package_name(pkg_desc: PackageDesc):
     local_desc = PackageDesc()
     ider.identify(local_desc, cyberfile_in_ws_content)
     if local_desc.status == Status.INVALID:
-        ErrCode.send_error(
-            ErrCode.PackageAttrErr,
-            ["{} with invalid status".format(local_desc.name)]
-        )
+        ErrCode.send_error(ErrCode.PackageAttrErr,
+                           ["{} with invalid status".format(local_desc.name)])
 
     return local_desc.name
+
 
 def _determine_repo_name(pkg_desc: PackageDesc):
     if pkg_desc._local_name is None:
@@ -460,7 +512,8 @@ def _determine_repo_name(pkg_desc: PackageDesc):
             else "{}-{}".format("placeholder", pkg_desc.name)
     else:
         return pkg_desc._local_name if not pkg_desc._local_name[0].isdigit() \
-            else "{}-{}".format("placeholder", pkg_desc._local_name) 
+            else "{}-{}".format("placeholder", pkg_desc._local_name)
+
 
 def _dertermine_workspace_dep_name(pkg_desc: PackageDesc):
     if pkg_desc.expose is None or pkg_desc.expose == "True":
@@ -472,23 +525,30 @@ def _dertermine_workspace_dep_name(pkg_desc: PackageDesc):
                 lib_name_list = [lib_name]
             else:
                 lib_name_list = pkg_desc._lib_names.split(",")
-    
+
             return ",".join(["{}:{}".format(head, i) for i in lib_name_list])
         else:
             head = "@{}".format(_determine_repo_name(pkg_desc))
-    
+
             if pkg_desc._lib_names is None:
                 return "{}//:{}".format(head, _determine_repo_name(pkg_desc))
 
             lib_name_list = pkg_desc._lib_names.split(",")
-            return ",".join(["{}//:{}".format(head, lib_name) for lib_name in lib_name_list])
+            return ",".join([
+                "{}//:{}".format(head, lib_name) for lib_name in lib_name_list
+            ])
     else:
         return None
+
 
 def _package_name_to_dir(name: str):
     return name.replace(apollo_prefix, "")
 
-def generate_init_func_content(pkg_desc: PackageDesc, deps_file: str, workspace: str, local=False):
+
+def generate_init_func_content(pkg_desc: PackageDesc,
+                               deps_file: str,
+                               workspace: str,
+                               local=False):
     """generate init function content"""
     template = get_template("deps.in")
     if template is None:
@@ -503,31 +563,30 @@ def generate_init_func_content(pkg_desc: PackageDesc, deps_file: str, workspace:
     #     # else:
     #     name = _determine_repo_name(pkg_desc)
     #     path = os.path.join(
-    #         get_config("base", "apollo_root"), 
-    #         "packages", 
+    #         get_config("base", "apollo_root"),
+    #         "packages",
     #         "{}".format(pkg_desc.name),
     #         "local"
     #     )
     # else:
     #     name = _determine_repo_name(pkg_desc)
     #     path = os.path.join(
-    #         get_config("base", "apollo_root"), 
-    #         "packages", 
+    #         get_config("base", "apollo_root"),
+    #         "packages",
     #         "{}".format(pkg_desc.name),
     #         "latest"
     #     )
     name = _determine_repo_name(pkg_desc)
     if _is_deprecated_package(pkg_desc):
-        path = os.path.join(
-            get_config("base", "apollo_root"), 
-            "packages", 
-            "{}".format(pkg_desc.name),
-            "latest"
-        )
+        path = os.path.join('/opt/apollo/neo', "packages",
+                            "{}".format(pkg_desc.name), "latest")
+        if not os.path.exists(path):
+            path = '/opt/apollo/neo'
     else:
         path = get_config("base", "apollo_root")
-    
-    deps_file_bazel_format = _build_wrapper_to_bazel_format(deps_file, workspace)
+
+    deps_file_bazel_format = _build_wrapper_to_bazel_format(
+        deps_file, workspace)
 
     template = template.replace("@@FUNC@@", func_name)
     template = template.replace("@@NAME@@", name)
@@ -536,7 +595,9 @@ def generate_init_func_content(pkg_desc: PackageDesc, deps_file: str, workspace:
 
     return InitWrapper(template, func_name)
 
-def generate_third_binary_init_func_content(pkg_desc: PackageDesc, deps_file: str, workspace: str):
+
+def generate_third_binary_init_func_content(pkg_desc: PackageDesc,
+                                            deps_file: str, workspace: str):
     template = get_template("deps.in")
     if template is None:
         return template
@@ -549,28 +610,26 @@ def generate_third_binary_init_func_content(pkg_desc: PackageDesc, deps_file: st
     #else:
     #    name = pkg_desc._local_name
 
-    path = os.path.join(
-        get_config("base", "apollo_root"), 
-        "packages", 
-        "{}".format(pkg_desc.name),
-        "latest"
-    )
+    path = os.path.join('/opt/apollo/neo', "packages",
+                        "{}".format(pkg_desc.name), "latest")
 
-    deps_file_bazel_format = _build_wrapper_to_bazel_format(deps_file, workspace)
+    deps_file_bazel_format = _build_wrapper_to_bazel_format(
+        deps_file, workspace)
     template = template.replace("@@FUNC@@", func_name)
     template = template.replace("@@NAME@@", name)
     template = template.replace("@@BUILD_FILE@@", deps_file_bazel_format)
     template = template.replace("@@LOCAL_PATH@@", path)
-    return InitWrapper(template, func_name) 
-    
+    return InitWrapper(template, func_name)
 
-def generate_system_package_content(pkg_desc: PackageDesc, deps_file: str, workspace: str):
+
+def generate_system_package_content(pkg_desc: PackageDesc, deps_file: str,
+                                    workspace: str):
     """generate system package content"""
     template_build = get_template("system.BUILD.in")
     template_init_func = get_template("deps.in")
     if template_build is None or template_init_func is None:
         return None, None
-    
+
     name = _determine_repo_name(pkg_desc)
     #if pkg_desc._local_name is None:
     #    name = pkg_desc.name
@@ -580,7 +639,8 @@ def generate_system_package_content(pkg_desc: PackageDesc, deps_file: str, works
     if pkg_desc.so_names is None:
         lib = ""
     else:
-        lib = "\n".join(["\"-l{}\",".format(i) for i in pkg_desc.so_names.split(",")])
+        lib = "\n".join(
+            ["\"-l{}\",".format(i) for i in pkg_desc.so_names.split(",")])
 
     template_build = template_build.replace("@@NAME@@", name)
     template_build = template_build.replace("@@LIB@@", lib)
@@ -588,14 +648,17 @@ def generate_system_package_content(pkg_desc: PackageDesc, deps_file: str, works
     func_name = "{}_repo".format(pkg_desc.name)
     func_name = func_name_check(func_name, pkg_desc)
     path = "/usr/include"
-    
-    deps_file_bazel_format = _build_wrapper_to_bazel_format(deps_file, workspace)
+
+    deps_file_bazel_format = _build_wrapper_to_bazel_format(
+        deps_file, workspace)
     template_init_func = template_init_func.replace("@@FUNC@@", func_name)
     template_init_func = template_init_func.replace("@@NAME@@", name)
-    template_init_func = template_init_func.replace("@@BUILD_FILE@@", deps_file_bazel_format)
+    template_init_func = template_init_func.replace("@@BUILD_FILE@@",
+                                                    deps_file_bazel_format)
     template_init_func = template_init_func.replace("@@LOCAL_PATH@@", path)
 
     return InitWrapper(template_init_func, func_name), template_build
+
 
 def _build_wrapper_to_bazel_format(deps_file, workspace):
     """change absolute of build file to bazel accepted format"""
@@ -605,18 +668,20 @@ def _build_wrapper_to_bazel_format(deps_file, workspace):
     else:
         deps_file_bazel_format = "//{}".format(deps_file_bazel_format)
     deps_file_bazel_format_list = deps_file_bazel_format.split("/")
-    former_value = deps_file_bazel_format_list[0: len(deps_file_bazel_format_list)-1]
+    former_value = deps_file_bazel_format_list[
+        0:len(deps_file_bazel_format_list) - 1]
     build_file = deps_file_bazel_format_list[-1]
     deps_file_bazel_format = "{}:{}".format("/".join(former_value), build_file)
     return deps_file_bazel_format
 
 
 def _null_func(pkg_desc: PackageDesc):
-    return 
+    return
+
 
 def _create_pre_folders(src: str, workspace: str, buildfile=True):
     pre_folders = src.split("/")
-    pre_folders = pre_folders[: len(pre_folders)-1]
+    pre_folders = pre_folders[:len(pre_folders) - 1]
     root = workspace
     for i in pre_folders:
         root = os.path.join(root, i)

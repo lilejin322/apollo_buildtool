@@ -46,7 +46,7 @@ class BazelTestTask(BazelBaseTask):
         args = context.args
         childs = context.args.childs
         
-        logger.info("Import depends...")
+        # logger.info("Import depends...")
         if not self.procedure.import_depends(
                 self.ws, target=True, childs=childs):
             return -1
@@ -55,13 +55,13 @@ class BazelTestTask(BazelBaseTask):
             self.procedure.store_module_info(pkg_desc, childs)
             self.procedure.render_dynamic_import_file(self.ws)
 
-        logger.info("Preprocess {}".format(pkg_desc.name))
+        logger.info("Processing {}".format(pkg_desc.name))
 
         ret = self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.ws)
         if ret:
             return ret
         
-        logger.info("PostProcess {}".format(pkg_desc.name))
+        # logger.info("PostProcess {}".format(pkg_desc.name))
         self.router.find_postprocess_func(pkg_desc)(pkg_desc, self.ws)
 
         return 0
@@ -109,6 +109,23 @@ class BazelTestTask(BazelBaseTask):
             test_path += " --build_tag_filters=-exclude --test_tag_filters=-exclude" 
         else:
             test_path += " --build_tag_filters=-exclude,-gpu_exclusive --test_tag_filters=-exclude,-gpu_exclusive"  
+
+        install_parm = get_config("base", "apollo_root") + "/"
+        install_src_parm = install_parm
+        mock_path = os.path.dirname(os.path.join(
+            "dev", get_config("cache", "mock_install_target_file")))
+        cmd_install_src = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
+                          ["{}:mock_install_src".format(mock_path)] + ["--", install_src_parm]
+
+        ret = subprocess.run(" ".join(cmd_install_src), stderr=subprocess.STDOUT, shell=True)
+        if ret.returncode != 0:
+            ErrCode.send_error(
+                ErrCode.BazelErr,
+                ["Compiling and install failed!"],
+                ["Please checkout source code or build file by following bazel error hints"],
+                exit=False
+            )
+            return ret.returncode
 
         cmd = [BAZEL_EXECUTABLE] + ["test"] + args_str + [test_path]
 

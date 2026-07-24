@@ -205,14 +205,24 @@ class Action(core.action.Action):
         if not os.path.exists(".workspace.json"):
             repo_name = self.repositories[0].name
             repo_version = self.repositories[0].version
-            workspace_raw = {"repositories": [{"name": repo_name, "version": repo_version}]}
+            workspace_raw = {"repositories": [{"name": i.name, "version": i.version} for i in self.repositories]}
             with open(".workspace.json", "w+") as f:
                 f.write(json.dumps(workspace_raw))
 
         release_files = "./* ./.workspace.json"
+        cp_cmd = "cp -L -r ../.workspace.json"
+        if os.path.exists(".rosenv"):
+            release_files = release_files + " ./.rosenv"
+            cp_cmd = cp_cmd + " ../.rosenv"
+            if os.path.exists("ros_ws/src"):
+                release_files = release_files + " ./src"
+                cp_cmd = cp_cmd + " ../ros_ws/src"
+            if os.path.exists("ros_ws/install"):
+                release_files = release_files + " ./install"
+                cp_cmd = cp_cmd + " ../ros_ws/install"
+        cp_cmd = cp_cmd + " ./ && cd ../"
         subprocess.run(
-            "cd {} && cp -L ../.workspace.json ./ && cd ../".format(
-                    release_path), shell=True)
+            f"cd {release_path} && {cp_cmd}", shell=True)
         ret = subprocess.run(
             "cd {} && tar -czvf ./../{} {} >/dev/null 2>&1 && cd ../".format(
                     release_path, release_file_name, release_files), shell=True)

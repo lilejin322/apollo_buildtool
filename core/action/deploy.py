@@ -303,6 +303,33 @@ class Action(core.action.Action):
             release_pkg_name = local_file_targets_name[release_pkg]
             self.cache_install_target(self.workspace, release_pkg_name)
         
+        enable_ros = False
+        with_ros_source = False
+        with_ros_install = False
+        if os.path.exists(os.path.join(release_path, ".rosenv")):
+            subprocess.run("cp -f {} ./".format(
+                os.path.join(release_path, ".rosenv")), shell=True)
+            enable_ros = True
+        if os.path.exists(os.path.join(release_path, "src")):
+            # subprocess.run("rsync -avr {}/ ros_ws/src/ >/dev/null 2>&1".format(
+            #     os.path.join(release_path, "src")))
+            with_ros_source = True
+        
+        sub_args = ""
+        if args.tsinghua_proxy:
+            sub_args = sub_args + "-t"
+        if with_ros_source:
+            sub_args = sub_args + " -p {}".format(os.path.join(release_path, "src"))
+            
+        ret = subprocess.run(f"buildtool rosenv {sub_args}", shell=True)
+        if ret.returncode != 0:
+            exit(ret.returncode)
+
+        if os.path.exists(os.path.join(release_path, "install")):
+            subprocess.run("rsync -avr {}/ ros_ws/install/ >/dev/null".format(
+                os.path.join(release_path, "install")), shell=True)
+            with_ros_install = True
+        
         shutil.rmtree(release_path)
 
         logger.info("Complete to deployment!")
@@ -313,3 +340,5 @@ class Action(core.action.Action):
         parser.add_argument("-f", "--file",
             nargs=1, type=str.lstrip,
             help="Specify the release file.")
+        parser.add_argument('-t', '--tsinghua_proxy', action="store_true",
+            help='use tsinghua proxy to rosdep if including ros pkg', default=False) 

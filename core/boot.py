@@ -15,7 +15,7 @@
 # limitations under the License.
 ###############################################################################
 """
-functions set invoking bootstrap command 
+functions set invoking bootstrap command
 """
 import pathlib
 import subprocess
@@ -28,55 +28,69 @@ APOLLO_ROOT = get_config("base", "apollo_root")
 APOLLO_PACKAGES_PATH = "{}/packages".format(APOLLO_ROOT)
 APOLLO_LIB_PATH = "{}/lib".format(APOLLO_ROOT)
 
+
 def run_module(module_name):
     """run module"""
     #TODO: support arm64
     setup_device_for_amd64()
+    # in_virtual_env = False
+    # if os.environ.get('AEM_HOST_VIRUTALENV', None):
+    #     in_virtual_env = True
+    apollo_runtime_path = os.environ.get('APOLLO_RUNTIME_PATH', '/apollo')
     #module_name = (module_name.split("-"))[0]
     cyber_launch = shutil.which("cyber_launch")
     if cyber_launch is None or cyber_launch == "":
         ErrCode.send_error(
-            ErrCode.ModuleIsNotInstallErr, 
-            ["Could not find cyber_launch. Is cyber already installed?"]
-        )
+            ErrCode.ModuleIsNotInstallErr,
+            ["Could not find cyber_launch. Is cyber already installed?"])
 
     if "." in module_name and module_name.split(".")[-1] == "launch":
         module_launch = module_name
         if not module_launch.startswith("/"):
             module_launch = os.path.join(os.getcwd(), module_launch)
     else:
-        module_path = pathlib.Path("/apollo/modules") / module_name
-        module_launch = module_path / "launch" / "{}.launch".format(module_name.split("-")[0])
+        module_path = pathlib.Path(
+            f'{apollo_runtime_path}/modules') / module_name
+        module_launch = module_path / "launch" / "{}.launch".format(
+            module_name.split("-")[0])
     if not module_launch.exists():
         ErrCode.send_error(
-            ErrCode.ModuleIsNotInstallErr, 
-            ["Could not find {}. Is it already built?".format(module_name)]
-        )
+            ErrCode.ModuleIsNotInstallErr,
+            ["Could not find {}. Is it already built?".format(module_name)])
 
-    log_dir = os.path.join(get_config("base", "apollo_root"), "data/log")
+    apollo_work_root = os.environ.get('APOLLO_ENV_WORKROOT',
+                                      '/apollo_workspace')
+    log_dir = os.path.join(apollo_work_root, "data/log")
     cmd = "{} start {} >{}.log 2>&1 &".format(
-        cyber_launch, module_launch, os.path.join(log_dir, module_name)
-    )
+        cyber_launch, module_launch, os.path.join(log_dir, module_name))
     subprocess.run(cmd, shell=True)
     return 0
 
+
 def check_module_is_running(module_name):
     """check module is running"""
-    module_path = pathlib.Path("/apollo/modules") / module_name 
-    query = module_path / "launch" / "{}.launch".format(module_name.split("-")[0])
+    apollo_runtime_path = os.environ.get('APOLLO_RUNTIME_PATH', '/apollo')
+    module_path = pathlib.Path(f'{apollo_runtime_path}/modules') / module_name
+    query = module_path / "launch" / "{}.launch".format(
+        module_name.split("-")[0])
     cmd = "pgrep -f \"{}\" | grep -cv '^1$'".format(query)
-    num_processes = int(subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT))
+    num_processes = int(
+        subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT))
     if num_processes == 0:
         return False
     return True
 
+
 def double_check_module_is_running(module_name):
     """double check module is running"""
-    module_path = pathlib.Path("/apollo/modules") / module_name
-    query = module_path / "launch" / "{}.launch".format(module_name.split("-")[0])
+    apollo_runtime_path = os.environ.get('APOLLO_RUNTIME_PATH', '/apollo')
+    module_path = pathlib.Path(f'{apollo_runtime_path}/modules') / module_name
+    query = module_path / "launch" / "{}.launch".format(
+        module_name.split("-")[0])
     cmd = "pgrep -f \"{}\"".format(query)
     try:
-        process_pids_str = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
+        process_pids_str = subprocess.check_output(
+            cmd, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
     except:
         return
     process_pids = process_pids_str.split("\n")
@@ -84,39 +98,41 @@ def double_check_module_is_running(module_name):
         if pid == "":
             continue
         ppids = subprocess.check_output(
-            "ps --ppid {} |awk '{{if (NR>1){{print $1}}}}'".format(pid), 
-            shell=True
-        ).decode("utf-8")
+            "ps --ppid {} |awk '{{if (NR>1){{print $1}}}}'".format(pid),
+            shell=True).decode("utf-8")
         for ppid in ppids.split("\n"):
             if ppid == "":
                 continue
-            subprocess.run("kill -9 {} >/dev/null 2>&1".format(ppid), shell=True)
+            subprocess.run("kill -9 {} >/dev/null 2>&1".format(ppid),
+                           shell=True)
 
         subprocess.run("kill -9 {} >/dev/null 2>&1".format(pid), shell=True)
 
+
 def stop_module(module_name):
     """stop module"""
+    apollo_runtime_path = os.environ.get('APOLLO_RUNTIME_PATH', '/apollo')
     cyber_launch = shutil.which("cyber_launch")
     if cyber_launch is None or cyber_launch == "":
         ErrCode.send_error(
-            ErrCode.ModuleIsNotInstallErr, 
-            ["Could not find cyber_launch. Is cyber already installed?"]
-        )
-        
-    module_path = pathlib.Path("/apollo/modules") / module_name
-    module_launch = module_path / "launch" / "{}.launch".format(module_name.split("-")[0])
+            ErrCode.ModuleIsNotInstallErr,
+            ["Could not find cyber_launch. Is cyber already installed?"])
+
+    module_path = pathlib.Path(f'{apollo_runtime_path}/modules') / module_name
+    module_launch = module_path / "launch" / "{}.launch".format(
+        module_name.split("-")[0])
     if not module_path.exists():
         ErrCode.send_error(
-            ErrCode.ModuleIsNotInstallErr, 
-            ["Could not find {}. Is it already built?".format(module_name)]
-        )
-        
+            ErrCode.ModuleIsNotInstallErr,
+            ["Could not find {}. Is it already built?".format(module_name)])
+
     if check_module_is_running(module_name):
         cmd = "{} stop {}".format(cyber_launch, module_launch)
         subprocess.run(cmd, shell=True)
         # sometime cyber_launch cannot kill the process
         double_check_module_is_running(module_name)
     return 0
+
 
 def setup_device_for_amd64():
     """setup cancard dev"""
@@ -126,14 +142,12 @@ def setup_device_for_amd64():
             continue
         elif pathlib.Path("/dev/zynq_can{}".format(i)).exists():
             ret = subprocess.run(
-                "sudo ln -snf /dev/zynq_can{} /dev/can{} >/dev/null 2>&1".format(i, i), 
-                shell=True
-            )
+                "sudo ln -snf /dev/zynq_can{} /dev/can{} >/dev/null 2>&1".
+                format(i, i),
+                shell=True)
             rc = ret.returncode
             if rc != 0:
-                ErrCode.send_error(
-                    ErrCode.UnknownErr,
-                    ["create device file description failed"]
-                )
+                ErrCode.send_error(ErrCode.UnknownErr,
+                                   ["create device file description failed"])
         else:
             break

@@ -1,11 +1,11 @@
 <package format="2">
   <name>buildtool</name>
-  <version>9.0.0-rc1-r19</version>
+  <version>1.0.0.1</version>
   <description>
     Apollo package buildtool.
   </description>
   
-  <maintainer email="apollo-support@baidu.com">Apollo</maintainer>
+  <maintainer email="apollo-support@baidu.com">apollo-support</maintainer>
   <license>Apache License 2.0</license>
   <url type="website">https://www.apollo.auto/</url>
   <url type="repository">https://github.com/ApolloAuto/apollo</url>

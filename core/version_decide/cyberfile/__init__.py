@@ -408,4 +408,3 @@ class MetaDataCli(object):
         if apollo_prefix not in name:
             return "{}{}".format(apollo_prefix, name)
         return name
-
