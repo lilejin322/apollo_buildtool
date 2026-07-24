@@ -456,7 +456,7 @@ class Action(object):
     def _process_basic_known_build_args(self, gpu_available, args):
         known_opt = None
         if args.cpu and args.gpu:
-            logger.info("CPU and GPU mode both use. Use GPU mode instead.")
+            logger.info("CPU and GPU mode both use")
             if gpu_available:
                 known_opt = "--config=gpu"
             else:
@@ -464,7 +464,8 @@ class Action(object):
                 known_opt = "--config=cpu" 
         elif not args.cpu and not args.gpu:
             if gpu_available:
-                known_opt = "--config=cpu"
+                # default using gpu mode to build
+                known_opt = "--config=gpu"
             else:
                 known_opt = "--config=cpu"
         else:

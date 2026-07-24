@@ -112,6 +112,97 @@ class Action(core.action.Action):
                                 gpu_if_available=True, install_dep_only=False,), 
                             pkg=t)
                     )
+                else:
+                    for k in local_file_targets_name:
+                        if local_file_targets_name[k] == t.name:
+                            deb_name = f"{k}.deb"
+                            break
+                    install_deb_path = os.path.join(release_path, deb_name)
+                    target_name = t.name
+                    logger.info("Install {}".format(target_name))
+                    cmd = "{} {} {} {} 2>&1 && {} {} {} {} 2>&1".format(
+                        "dpkg", "-x", install_deb_path, process_package_path,
+                        "dpkg", "-e", install_deb_path, process_package_path)
+
+                    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                    if p.returncode != 0:
+                        ErrCode.send_error(ErrCode.AptErr,
+                            ["Encouter error during decompress {}, detail:".format(i)],
+                            exit=False)
+                        print("\033[36mstdout\033[0m: {}".format(p.stdout.decode("utf-8")), end="")
+                        print("\033[36mstderr\033[0m: {}".format(p.stderr.decode("utf-8")), end="")
+                        ErrCode.send_error(ErrCode.AptErr, ["Aborting process"])
+                    
+                    prerm_in_package = os.path.join(process_package_path, "prerm") 
+                    postrm_in_package = os.path.join(process_package_path, "postrm")  
+                    preinst_in_package = os.path.join(process_package_path, "preinst") 
+                    postinst_in_package = os.path.join(process_package_path, "postinst")
+
+                    if not os.path.exists(prerm_in_package) or \
+                        not os.path.exists(postrm_in_package) or \
+                        not os.path.exists(preinst_in_package) or \
+                        not os.path.exists(postinst_in_package):
+                        ErrCode.send_error(ErrCode.PackageAttrErr,
+                            [
+                                "{} is missing install and rm scripts".format(i),
+                                "please check the relese procedure",
+                            ],
+                        )
+
+                    meta_path = os.path.join(get_config("base", "apollo_root"),
+                            get_config("base", "package_meta_prefix"), target_name)
+                    prerm = "{}/prerm".format(meta_path)
+                    postrm = "{}/postrm".format(meta_path)
+                    preinst = "{}/preinst".format(meta_path) 
+                    postinst = "{}/postinst".format(meta_path) 
+
+                    if os.path.exists(prerm):
+                        cmd = "sudo {}".format(prerm)
+                        p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
+                        if p.returncode != 0:
+                            ErrCode.send_error(ErrCode.PackageAttrErr,
+                                [
+                                    "delete {} error, causing by invalid rm scripts".format(target_name),
+                                    "please contact apollo maintainers"
+                                ],
+                            )
+                    if os.path.exists(postrm):
+                        cmd = "sudo {}".format(postrm)
+                        p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
+                        if p.returncode != 0:
+                            ErrCode.send_error(ErrCode.PackageAttrErr,
+                                [
+                                    "delete {} error, causing by invalid rm scripts".format(target_name),
+                                    "please contact apollo maintainers"
+                                ],
+                            )
+
+                    cmd = "sudo {}".format(preinst_in_package)
+                    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
+                    if p.returncode != 0:
+                        ErrCode.send_error(ErrCode.PackageAttrErr,
+                            ["preinst {} error, please contact apollo maintainers".format(target_name)],
+                        )
+                    
+                    copy_tree("{}/".format(os.path.join(
+                            process_package_path, get_config("base", "apollo_root")[1:])), 
+                        "{}/".format(get_config("base", "apollo_root")))
+
+                    cmd = "sudo {}".format(postinst_in_package)
+                    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
+                    if p.returncode != 0:
+                        ErrCode.send_error(ErrCode.PackageAttrErr,
+                            ["postinst {} error, please contact apollo maintainers".format(target_name)],
+                        )
+                    
+                    # copy scripts
+                    shutil.copy2(prerm_in_package, prerm)
+                    shutil.copy2(postrm_in_package, postrm)
+                    shutil.copy2(preinst_in_package, preinst)
+                    shutil.copy2(postinst_in_package, postinst)
+
+                    os.remove(install_deb_path)
+                    shutil.rmtree(process_package_path)
             for i in os.listdir(release_path):
                 if not i.endswith(".deb"):
                     continue

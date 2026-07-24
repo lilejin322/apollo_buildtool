@@ -26,7 +26,7 @@
 #include "{{ package_path }}/proto/{{ traffic_rule_name_snake  }}.pb.h"
 
 #include "cyber/plugin_manager/plugin_manager.h"
-#include "modules/planning/planning_base/traffic_rules_base/traffic_rule.h"
+#include "modules/planning/planning_interface_base/traffic_rules_base/traffic_rule.h"
 {% for inc in includes %}#include "{{ inc }}"
 {% endfor %}
 namespace apollo {

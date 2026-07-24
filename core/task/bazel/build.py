@@ -34,6 +34,7 @@ from core.task.bazel.handler import (
     _is_deprecated_package
 )
 from core.task.bazel.handler.router import Router
+from core.task.bazel.handler.postprocess import postprocess_after_compile
 from pathlib import Path
 
 logger = get_logger('buildtool')
@@ -53,12 +54,10 @@ class BazelBuildTask(BazelBaseTask):
         param: task context
         raise: RuntimeError
         """
-        # self.router.set_ws(context.workspace)
         self.ws = context.args.workspace
         pkg_desc = context.pkg
         args = context.args
         childs = context.args.childs
-        gpu_if_available = context.args.gpu_if_available
         install_dep_only = context.args.install_dep_only
 
         logger.info("Import depends...")
@@ -72,33 +71,32 @@ class BazelBuildTask(BazelBaseTask):
 
         logger.info("Preprocess {}".format(pkg_desc.name))
 
-        def install_procedure():
-            """
-            closure function which define install procedure
-            """
-            if pkg_desc.workspace is None:
-                # skip building process
-                return 0
-
-            logger.info("Building {}".format(pkg_desc.name))
-
-            self._check_necessaries(Path(pkg_desc.workspace))
-            ret = self._install(args, pkg_desc)
-            return ret
-
-        ret = self.router.find_preprocess_func(pkg_desc)(
-            pkg_desc, self.ws, f=install_procedure, gpu_if_available=gpu_if_available
-        )
+        ret = self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.ws)
         if ret:
             return ret
 
-        if pkg_desc.type == "module" and pkg_desc.import_type == "src" and not install_dep_only:
-            ret = install_procedure()
-            if ret != 0:
-                return ret
+        # if pkg_desc.type == "module" and pkg_desc.import_type == "src" and not install_dep_only:
+        #     ret = install_procedure()
+        #     if ret != 0:
+        #         return ret
         
         logger.info("PostProcess {}".format(pkg_desc.name))
         self.router.find_postprocess_func(pkg_desc)(pkg_desc, self.ws)
+        return 0
+
+    def final_install_procedure(self, args, targets):
+        """
+        function which define the final stall procedure
+        """
+        self._generated_mock_install_target(self.ws, targets)
+
+        for i in targets:
+            self._check_necessaries(Path(i.workspace))
+        ret = self._install(args)
+        if ret != 0:
+            return ret
+        for i in targets:
+            postprocess_after_compile(i, args.workspace)
         return 0
 
     def _get_last_args(self, arguments):
@@ -126,31 +124,7 @@ class BazelBuildTask(BazelBaseTask):
                     self._store_args(arguments, bazel_args)
         return bazel_args
 
-    # def _build(self, args, pkg_desc):
-    #    bazel_args = args.builder_args
-    #    pkg_path = Path(pkg_desc.path)
-    #    build_path = pkg_path / "dev" / "bazel"
-    #    
-    #    cwd = os.getcwd()
-    #    nproc = os.cpu_count()
-
-    #    os.chdir(pkg_desc)
-    #    logger.info("Build package {}...".format(pkg_desc.name))
-
-    #    bazel_args = self._check_args(build_path, bazel_args)
-
-    #    bazel_args = self._add_basic_args(bazel_args, nproc)
-
-    #    cmd = [BAZEL_EXECUTABLE] + ["build"] + bazel_args + ["//..."]
-    #   ret = subprocess.run(cmd, stderr=subprocess.STDOUT)
-    #    if ret.returncode != 0:
-    #        logger.error("Build package {} failed! " \
-    #        "You should checkout the BUILD file.".format(pkg_desc.name))
-    #        raise RuntimeError("Build package %s failed!" % pkg_desc.name)
-
-    #    os.chdir(cwd)
-
-    def _install(self, args, pkg_desc):
+    def _install(self, args):
         # ld.gold cannot load ldconfig cache
         # thus we just add all linkopt to build target
         lib_paths = []
@@ -161,11 +135,6 @@ class BazelBuildTask(BazelBaseTask):
             if d.startswith("3rd-"):
                 lib_paths.append(os.path.join(lib_path_prefix, d))
         lib_paths.sort()
-        # for root, dirs, _ in os.walk(
-        #     os.path.join(get_config("base", "apollo_root"),
-        #         get_config("base", "library_path_prefix"))):
-        #     for d in dirs:
-        #         lib_paths.append(os.path.join(root, d))
         lib_paths.reverse()
         
         host_link_opt = []
@@ -187,12 +156,6 @@ class BazelBuildTask(BazelBaseTask):
         nproc = os.cpu_count()
 
         install_parm = ""
-        # if args.dbg:
-        #     install_parm += "--dbg"
-        # if args.gpu:
-        #     install_parm += " --gpu"
-        # if args.dev:
-        #     install_parm += " --dev"
 
         install_prefix = get_config("base", "apollo_root") + "/"
         install_parm += " {}".format(install_prefix)
@@ -203,22 +166,25 @@ class BazelBuildTask(BazelBaseTask):
 
         os.chdir(str(workspace_wrapper))
 
-        logger.info("Build and install package {}...".format(pkg_desc.name))
+        logger.info("Compiling whole workspace...")
 
         # bazel_args = self._check_args(build_path, bazel_args)
         args_str = self._add_basic_args(bazel_args, known_options, nproc, args.memories, args.jobs)
 
+        mock_path = os.path.dirname(os.path.join(
+            "dev", get_config("cache", "mock_install_target_file")))
+
         cmd_install_src = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
-                          ["{}:install_src".format(pkg_desc.real_src)] + ["--", install_src_parm]
+                          ["{}:mock_install_src".format(mock_path)] + ["--", install_src_parm]
 
         cmd_install = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
-                      ["{}:install".format(pkg_desc.real_src)] + ["--", install_parm]
+                      ["{}:mock_install".format(mock_path)] + ["--", install_parm]
 
         ret = subprocess.run(" ".join(cmd_install_src), stderr=subprocess.STDOUT, shell=True)
         if ret.returncode != 0:
             ErrCode.send_error(
                 ErrCode.BazelErr,
-                ["Build and install package {} failed!".format(pkg_desc.name)],
+                ["Compiling and install failed!"],
                 ["Please checkout source code or build file by following bazel error hints"],
                 exit=False
             )
@@ -228,13 +194,11 @@ class BazelBuildTask(BazelBaseTask):
         if ret.returncode != 0:
             ErrCode.send_error(
                 ErrCode.BazelErr,
-                ["Install package {} source failed!".format(pkg_desc.name)],
+                ["Compiling and install failed!"],
                 ["Please checkout the build file by following bazel error hints"],
                 exit=False
             )
             return ret.returncode
-        # subprocess.run(
-        #     "ps -ef | grep bazel | awk '{print $2}' | xargs kill >/dev/null 2>&2", shell=True)
         
         os.chdir(cwd)
         return 0

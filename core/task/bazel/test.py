@@ -18,6 +18,7 @@
 perform unit test by using bazel
 """
 import os
+import platform
 import subprocess
 from core import ErrCode
 from core.task.bazel import BAZEL_EXECUTABLE
@@ -25,6 +26,7 @@ from core.logging import get_logger
 from core.task.bazel import BazelBaseTask
 from core.common import get_config
 from core.task.bazel.handler import Procedure
+from core.task.bazel.handler.router import Router
 from pathlib import Path
 
 logger = get_logger('buildtool')
@@ -35,6 +37,7 @@ class BazelTestTask(BazelBaseTask):
     def __init__(self):
         super().__init__()
         self.procedure = Procedure()
+        self.router = Router()
 
     def run(self, context):
         """test task logic"""
@@ -45,21 +48,51 @@ class BazelTestTask(BazelBaseTask):
         
         logger.info("Import depends...")
         if not self.procedure.import_depends(
-            self.ws, target=True, childs=childs
-        ):
+                self.ws, target=True, childs=childs):
             return -1
+
+        if pkg_desc.type == "module" and pkg_desc.import_type == "src":
+            self.procedure.store_module_info(pkg_desc, childs)
+            self.procedure.render_dynamic_import_file(self.ws)
+
+        logger.info("Preprocess {}".format(pkg_desc.name))
+
+        ret = self.router.find_preprocess_func(pkg_desc)(pkg_desc, self.ws)
+        if ret:
+            return ret
         
-        logger.info("Testing package {}...".format(pkg_desc.name))
-        self._check_necessaries(Path(pkg_desc.workspace))
-        rc = self._test(args, pkg_desc)
-        if rc != 0:
-            return rc
+        logger.info("PostProcess {}".format(pkg_desc.name))
+        self.router.find_postprocess_func(pkg_desc)(pkg_desc, self.ws)
+
         return 0
 
+    def final_test(self, args, targets):
+        """concurrency test procedure""" 
+        ret = self._test(args, targets)
+        if ret != 0:
+            return ret
+        return 0
 
-    def _test(self, args, pkg_desc):
-        host_link_opt = ['--host_linkopt=-"L{}"'.format(lib_path) for lib_path in self.procedure.runtime_lib_path]
-        host_link_opt += ['--linkopt=-"L{}"'.format(lib_path) for lib_path in self.procedure.runtime_lib_path]
+    def _test(self, args, packages):
+        lib_paths = []
+        lib_path_prefix = os.path.join(
+            get_config("base", "apollo_root"),
+            get_config("base", "library_path_prefix"))
+        for d in os.listdir(lib_path_prefix):
+            if d.startswith("3rd-"):
+                lib_paths.append(os.path.join(lib_path_prefix, d))
+        lib_paths.sort()
+        lib_paths.reverse()
+        
+        host_link_opt = []
+        if platform.machine() == "aarch64":
+            tegra_path = "/usr/lib/aarch64-linux-gnu/tegra"
+            if os.path.exists(tegra_path):
+                host_link_opt += ['--host_linkopt="-L{}"'.format(tegra_path)]
+                host_link_opt += ['--linkopt="-L{}"'.format(tegra_path)]
+            
+        host_link_opt += ['--host_linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
+        host_link_opt += ['--linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
         
         bazel_args = args.builder_args + host_link_opt
         known_options = args.known_options
@@ -71,7 +104,7 @@ class BazelTestTask(BazelBaseTask):
 
         args_str = self._add_basic_args(bazel_args, known_options, nproc, args.memories, args.jobs)
 
-        test_path = pkg_desc.real_src_to_related_path() + "/..."
+        test_path = " ".join([i.real_src_to_related_path() + "/..." for i in packages])
         if args.gpu:
             test_path += " --build_tag_filters=-exclude --test_tag_filters=-exclude" 
         else:
@@ -81,12 +114,6 @@ class BazelTestTask(BazelBaseTask):
 
         ret = subprocess.run(" ".join(cmd), stderr=subprocess.STDOUT, shell=True)
         if ret.returncode != 0:
-            ErrCode.send_error(
-                ErrCode.UnittestFailedErr,
-                ["Unittest failed: {}".format(pkg_desc.name)],
-                ["Please checkout the build file and source code by following bazel hints"],
-                exit=False
-            )
             return ret.returncode 
 
         os.chdir(cwd)

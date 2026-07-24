@@ -307,8 +307,8 @@ class MetaDataCli(object):
                 prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), ns)
                 cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
 
-                if os.path.exists(cyberfile_cache):
-                    os.remove(cyberfile_cache)
+                if os.path.exists(cyberfiles_path):
+                    os.remove(cyberfiles_path)
 
                 ErrCode.send_error(ErrCode.FileIoError,
                     ["Internal error: missing cyberfile of {} in repository".format(name, ns)])

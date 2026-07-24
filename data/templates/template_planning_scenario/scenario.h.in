@@ -26,7 +26,8 @@
 #include "{{ package_path }}/proto/{{ scenario_name_snake }}.pb.h"
 
 #include "cyber/plugin_manager/plugin_manager.h"
-#include "modules/planning/planning_base/scenario_base/scenario.h"
+#include "modules/planning/planning_base/common/frame.h"
+#include "modules/planning/planning_interface_base/scenario_base/scenario.h"
 {% for inc in includes %}#include "{{ inc }}"
 {% endfor %}
 namespace apollo {

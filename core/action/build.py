@@ -159,10 +159,13 @@ class Action(core.action.Action):
         
         self.known_options = self._process_basic_known_build_args(self.use_gpu, self.args)
         
+        ##########################################
+        # deprecated
         if "--config=cpu" in self.known_options:
             self.cyberfile_gpu = False
         else:
             self.cyberfile_gpu = True
+        ########################################## 
 
         if self.args.dbg and self.args.opt:
             logger.info("DEBUG and OPTIMAL mode both use. Use optimal instead.")
@@ -172,12 +175,19 @@ class Action(core.action.Action):
                 self.known_options += " --config=dbg"
             if self.args.opt:
                 self.known_options += " --config=opt"
+            if not self.args.opt and not self.args.dbg:
+                # default using optimal to build
+                self.known_options += " --config=opt"
+        
+        ##########################################
+        # deprecated
         if "--config=dbg" in self.known_options:
             self.cyberfile_dbg = True
             self.cyberfile_dev = False
         else:
             self.cyberfile_dev = True
             self.cyberfile_dbg = False
+        ##########################################
 
         if self.args.prof:
             self.known_options += " --config=prof"
@@ -313,11 +323,6 @@ class Action(core.action.Action):
         if not self._check_status_before_build(targets):
             return -1
 
-        # Early deletion of modules prevents deletion of 
-        # compiled outputs that should not be deleted
-        for i in targets:
-            self.clean_local_target(i)
-
         installed_meta = get_config("cache", "installed_package")
         os.makedirs(os.path.dirname(installed_meta), exist_ok=True)
         exclude_packages = set()
@@ -331,6 +336,9 @@ class Action(core.action.Action):
                 # update cache list
                 package_to_source = dict()
                 for i in raw_installed_package:
+                    # INVALID LINE
+                    if ":" not in i:
+                        continue
                     elem = i.split(":")
                     package_to_source[elem[1]] = elem[0]
                 cache_content = list()
@@ -379,6 +387,8 @@ class Action(core.action.Action):
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                     subprocess.run("sudo {}".format(postrm),
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        
+        self.set_ld_path()
 
         for index, target in enumerate(targets):
             # make sure target position is correct
@@ -395,8 +405,6 @@ class Action(core.action.Action):
                 )
                 return ErrCode.KeyErr
 
-            self.set_ld_path()
-
             if not self.procedure.init_workspace(str(workspace_file_wrapper), targets, index):
                 ErrCode.send_error(
                     ErrCode.FileIoErr,
@@ -408,18 +416,12 @@ class Action(core.action.Action):
             ret_code = builder.run(
                 Context(
                     args=Namespace(
-                        builder_args=self.builder_args, 
-                        known_options=self.known_options,
-                        workspace=workspace,
-                        gpu=self.cyberfile_gpu,
-                        dbg=self.cyberfile_dbg,
-                        dev=self.cyberfile_dev,
-                        memories=args.memories,
-                        jobs=args.jobs,
+                        builder_args=self.builder_args, known_options=self.known_options,
+                        workspace=workspace, gpu=self.cyberfile_gpu, dbg=self.cyberfile_dbg,
+                        dev=self.cyberfile_dev, memories=args.memories, jobs=args.jobs,
                         compatible=args.compatible_with_src,
                         childs=graph._get_node_by_name(target.name).return_all_childs(),
-                        gpu_if_available=gpu_if_available,
-                        install_dep_only=self.args.install_dep_only
+                        gpu_if_available=gpu_if_available, install_dep_only=self.args.install_dep_only
                     ), 
                     pkg=target
                 )
@@ -427,12 +429,32 @@ class Action(core.action.Action):
             if ret_code != 0:
                 return ret_code
 
-            self.set_ld_path()
+        self.set_ld_path()
 
+        # Early deletion of modules prevents deletion of 
+        # compiled outputs that should not be deleted
+        for i in targets:
+            self.clean_local_target(i)
+
+        final_args = Namespace(
+            builder_args=self.builder_args, known_options=self.known_options,
+            workspace=workspace, memories=args.memories, jobs=args.jobs,
+            compatible=args.compatible_with_src, gpu_if_available=gpu_if_available,
+            install_dep_only=self.args.install_dep_only
+        )
+        install_target = [i for i in list(filter(
+            lambda x: x.type == "module" and x.import_type == "src", targets))]
+        ret = builder.final_install_procedure(final_args, install_target)   
+        if ret != 0:
+            return ret
+        
+        self.set_ld_path()
+        
         if args.compatible_with_src:
             if os.path.exists(os.path.join(
                     workspace, "dev", "install")):
                 shutil.rmtree(os.path.join(workspace, "dev", "install"))
         
+        logger.info("compilation done!")
         return 0
         

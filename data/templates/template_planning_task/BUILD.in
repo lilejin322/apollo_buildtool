@@ -18,6 +18,7 @@ apollo_plugin(
     description = ":plugin_{{ target_name }}_description.xml",
     deps = [
         "//modules/planning/planning_base:apollo_planning_planning_base",
+        "//modules/planning/planning_interface_base:apollo_planning_planning_interface_base",
         "//{{ package_path }}/proto:{{ task_name_snake }}_proto",
 {% for dep in build_dependencies %}        "{{ dep }}",
 {% endfor %}

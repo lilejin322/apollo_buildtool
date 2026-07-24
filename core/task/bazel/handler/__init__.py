@@ -106,9 +106,12 @@ class Procedure(object):
             "depends": [i.name for i in list(filter(
                 lambda x: x.name in self.workspace_deps_dict, deps_list))]
         }
+        self.dynamic_src[target.name]["depends"].sort()
 
         for dep in deps_list:
-            if dep in self.dynamic_bin or dep.expose == "False":
+            if dep.name in self.dynamic_src:
+                continue
+            if dep.name in self.dynamic_bin or dep.expose == "False":
                 continue
             self.dynamic_bin[dep.name] = {
                 "name": dep.name,
@@ -137,18 +140,25 @@ class Procedure(object):
 
                 results = matcher.findall(content)
                 if len(results) == 0:
-                    Error.send_error(
+                    ErrCode.send_error(
                         ErrCode.FileIoErr,
                         [f"Parse bazel meta of {dep.name} failed"],
                         ["Considering rebuild or reinstall this package"],
                     )
+                repo = dep.name
+                if dep.name.startswith("3rd"):
+                    if dep._local_name != dep.name:
+                        repo = dep._local_name
+                    if repo[0].isdigit():
+                        repo = "{}-{}".format("placeholder", repo)
                 self.dynamic_bin[dep.name]["targets"] = [
-                    f"@{dep.name}//:{i}" for i in list(filter(None, results))]
+                    f"@{repo}//:{i}" for i in list(filter(None, results))]
             else:
                 if dep.name in self.workspace_deps_dict:
-                    target = self.workspace_deps_dict[dep.name].split(",")
-                    self.dynamic_bin[dep.name]["targets"] += target
-        
+                    non_module_target = self.workspace_deps_dict[dep.name].split(",")
+                    self.dynamic_bin[dep.name]["targets"] += non_module_target
+                
+            self.dynamic_bin[dep.name]["targets"].sort() 
         return True
 
     def render_dynamic_import_file(self, workspace):
@@ -156,7 +166,7 @@ class Procedure(object):
         render dynamic import file
         """
         template_vars = {
-            "status": 1,
+            "status": 2,
             "sources": [self.dynamic_src[i] for i in self.dynamic_src],
             "binaries": [self.dynamic_bin[i] for i in self.dynamic_bin]
         }
@@ -372,31 +382,6 @@ class Procedure(object):
         content = load_headers + "\n" + init_func_content + "\n" + entry_func + entry_func_content
         with deps_file_wrapper.open("w+", encoding="utf-8") as f:
             f.write(content)
-
-        # Replace src and import workspace depends
-        if kwargs["target"] == True:
-            bazel_support_file_wrapper = Path(workspace_path) / "tools" / "package" / "rules_cc.patch"
-            bazel_support_default_file_wrapper = Path(workspace_path) / "tools" / "package" / "rules_cc.release.patch"
-            if not bazel_support_default_file_wrapper.exists():
-                ErrCode.send_error(
-                    ErrCode.FileIoErr,
-                    ["Can not find apollo-neo-tools depend!"],
-                    ["Import it to cyberfile.xml"],
-                    exit=False
-                ) 
-                return False
-
-            with bazel_support_default_file_wrapper.open("r", encoding="utf-8") as f:
-                bazel_support_default_content = f.read()
-
-            childs_desc = kwargs["childs"]
-            self.init_workspace_deps(childs_desc)
-
-            bazel_support_replace_content = bazel_support_default_content.replace("@@SRC_REPLACEMENT@@", ",".join(self.replace_content_list))
-            bazel_support_replace_content = bazel_support_replace_content.replace("@@GEN_WS_DEPS@@", ",".join(self.workspace_deps_list))
-
-            with bazel_support_file_wrapper.open("w+", encoding="utf-8") as f:
-                f.write(bazel_support_replace_content)
 
         return True
 

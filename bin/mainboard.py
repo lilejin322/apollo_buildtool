@@ -43,7 +43,7 @@ from core import ErrCode
 
 # it may cause apt error
 #signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-VERSION = '9.0.0-rc1-r1'
+VERSION = '9.0.0-rc1-r3'
 
 
 def exit_handler():
@@ -239,9 +239,12 @@ def main():
     """main function"""
     obj = PackageBuilder()
     ret = obj.main()
-    if ret != 0:
+    if ret != 0 and ret is not None:
         return ret
-    obj.print_upgrade_msg()    
+    try:
+        obj.print_upgrade_msg()  
+    except:
+        pass
     logger.debug("Done, Enjoy!")
     return ret
 

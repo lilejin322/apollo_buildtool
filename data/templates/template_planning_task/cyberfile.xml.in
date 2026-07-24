@@ -16,7 +16,8 @@
 
   <depend>bazel-extend-tools</depend>
   <depend type="binary" repo_name="cyber">cyber</depend>
-  <depend type="binary" repo_name="planning">planning</depend>
+  <depend type="binary" repo_name="planning-base">planning-base</depend>
+  <depend type="binary" repo_name="planning-interface-base">planning-interface-base</depend>
 {% for dep in dependencies %}
   <depend type="{{ dep.import_type }}" repo_name="{{ dep.repo_name }}"{% if dep.lib_names %} lib_names="{{ dep.lib_names }}"{% endif %}>{{ dep.package_name }}</depend>
 {% endfor %}

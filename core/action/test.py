@@ -71,12 +71,8 @@ class Action(core.action.Action):
         for package in packages:
             self.test_packages[package.workspace] = package
 
-    def _check_package_test_target(self, package):
-        if package.workspace is None:
-            return False
-        if package.workspace in self.test_packages:
-            return True
-        return False
+    def _return_test_targets(self):
+        return [self.test_packages[i] for i in self.test_packages]
     
     def execute(self, args, **kwargs):
         """main logic of action"""
@@ -86,23 +82,6 @@ class Action(core.action.Action):
         self.process_args()
         workspace = self.workspace
 
-        if len(self.package_paths) == 0:
-            self._search_package_in_workspace(workspace)
-        else:
-            self._search_package_in_workspace(workspace)
-            for package in self.package_paths:
-                if package not in self.targets_path:
-                    logger.warning("Package in {} is invalid: cyberfile not found!".format(package))
-                    self.package_paths.remove(package)
-
-        if len(self.targets_path) < 1:
-            ErrCode.send_error(
-                ErrCode.ParamErr,
-                ["Can't find any package in workspace {}".format(workspace)],
-                exit=False
-            )
-            return ErrCode.ParamErr
-
         workspace_file_wrapper = Path(workspace) / "WORKSPACE"
         if not workspace_file_wrapper.exists():
             ErrCode.send_error(
@@ -111,6 +90,31 @@ class Action(core.action.Action):
                 exit=False
             )
             return ErrCode.FileIoErr
+
+        if len(self.package_paths) == 0:
+            self._search_package_in_workspace(workspace)
+        else:
+            self._search_package_in_workspace(workspace)
+            packages_path = []
+            for package in self.package_paths:
+                if package in self.targets_path:
+                    packages_path.append(package)
+                    continue
+                for target in self.targets_path:
+                    if target.startswith(package):
+                        packages_path.append(target)
+                        continue
+                logger.warning(f"Can't find any package located in {package}")
+
+            self.package_paths = packages_path
+
+        if len(self.targets_path) < 1:
+            ErrCode.send_error(
+                ErrCode.ParamErr,
+                ["Can't find any package in workspace {}".format(workspace)],
+                exit=False
+            )
+            return ErrCode.ParamErr
 
         # construct targets by targets' path
         targets = self.construct_targets_desc()
@@ -130,13 +134,11 @@ class Action(core.action.Action):
             packages.append(path_to_desc[i])
         
         if len(packages) == 0:
-            ErrCode.send_error(
-                ErrCode.ParamErr,
-                ["Can't find specific unittest target"],
-                exit=False
-            )
-            return ErrCode.ParamErr
-        self._register_test_target(packages)
+            logger.info("Test all package in workspace")
+            packages = targets
+            self._register_test_target(targets)
+        else:
+            self._register_test_target(packages)
         
         # version determine
         self.decider(targets)
@@ -155,12 +157,11 @@ class Action(core.action.Action):
         if not self._check_status_before_build(targets):
             return -1
 
+        self.set_ld_path()
         for index, target in enumerate(targets):
             # make sure target position is correct
             if not self._check_package_location(target, workspace):
                 return -1
-            
-            self.set_ld_path()
 
             if not self.procedure.init_workspace(str(workspace_file_wrapper), targets, index):
                 ErrCode.send_error(
@@ -170,100 +171,46 @@ class Action(core.action.Action):
                 )
                 return ErrCode.FileIoErr
 
-            if self._check_package_test_target(target):
-                # perform unittest
-                try:
-                    tester = self.tester[target.builder]
-                except KeyError:
-                    ErrCode.send_error(
-                        ErrCode.KeyErr,
-                        [
-                            "{} support is not implemented, aborting build progress".format(
-                                target.builder
-                            )
-                        ],
-                        exit=False
-                    )
-                    return ErrCode.KeyErr
-                
-                ret_code = tester.run(
-                    Context(
-                        args = Namespace(
-                            builder_args=self.builder_args, 
-                            known_options=self.known_options,
-                            workspace=workspace,
-                            gpu=self.cyberfile_gpu,
-                            memories=0.75,
-                            jobs=-1,
-                            childs=graph._get_node_by_name(target.name).return_all_childs()
-                        ),
-                        pkg=target
-                    )
+            # perform unittest
+            try:
+                tester = self.tester[target.builder]
+            except KeyError:
+                ErrCode.send_error(
+                    ErrCode.KeyErr,
+                    [
+                        "{} support is not implemented, aborting build progress".format(
+                            target.builder
+                        )
+                    ],
+                    exit=False
                 )
-                if ret_code != 0:
-                    ErrCode.send_error(
-                        ErrCode.UnittestFailedErr,
-                        ["Unittest of {} is not pass, continue.".format(target.name)],
-                        exit=False
-                    )
-
-                # if this target is not the last test target, 
-                # the following test target may depend on it
-                if self._check_following_target(index, targets):
-                    rc = self._build_wrap(target, graph, workspace)
-                    if rc != 0:
-                        return rc
-            else:
-                # perform build
-                rc = self._build_wrap(target, graph, workspace)
-                if rc != 0:
-                    return rc
-        return 0
-
-    def _check_following_target(self, current_index, targets):
-        for i in range(current_index + 1, len(targets)):
-            following_target = targets[i]
-            if self._check_package_test_target(following_target):
-                return True
-        return False
-
-    def _build_wrap(self, target, graph, workspace):
-        gpu_if_available = False
-        if "--config=cpu" not in self.known_options:
-            gpu_if_available = True
-        try:
-            builder = self.builder[target.builder]
-        except KeyError:
-            ErrCode.send_error(
-                ErrCode.KeyErr,
-                [
-                    "{} support is not implemented, aborting build progress".format(
-                        target.builder
-                    )
-                ],
-                exit=False
+                return ErrCode.KeyErr
+            
+            ret_code = tester.run(
+                Context(
+                    args=Namespace(
+                        builder_args=self.builder_args, known_options=self.known_options,
+                        workspace=workspace, gpu=self.cyberfile_gpu, memories=0.75,
+                        jobs=-1, childs=graph._get_node_by_name(target.name).return_all_childs()
+                    ),
+                    pkg=target
+                )
             )
-            return ErrCode.KeyErr
-                
-        rc = builder.run(
-            Context(
-                args = Namespace(
-                    builder_args=self.builder_args, 
-                    known_options=self.known_options,
-                    workspace=workspace,
-                    gpu=self.cyberfile_gpu,
-                    dbg=self.cyberfile_dbg,
-                    dev=self.cyberfile_dev,
-                    gpu_if_available=gpu_if_available,
-                    memories=0.75,
-                    jobs=-1,
-                    childs=graph._get_node_by_name(target.name).return_all_childs(),
-                    install_dep_only=False
-                ), 
-                pkg = target
-            )
+            if ret_code != 0:
+                ErrCode.send_error(
+                    ErrCode.UnittestFailedErr,
+                    ["Failed to configuring {}.".format(target.name)],
+                )
+
+        tester.final_test(
+            args=Namespace(
+                builder_args=self.builder_args, known_options=self.known_options,
+                workspace=workspace, gpu=self.cyberfile_gpu, memories=0.75,
+                jobs=-1, childs=graph._get_node_by_name(target.name).return_all_childs()
+            ),
+            targets=self._return_test_targets()
         )
-        return rc
+        return 0
 
     @staticmethod
     def add_argument(parser):

@@ -168,11 +168,14 @@ class Action(core.action.Action):
             if cyberfile is not None:
                 # apollo package
                 version = None
-                for repository in self.repositories:
-                    if self.decider.metadata_cli.valid_repository_check(package, \
-                            repository.version, repository.name):
-                        version = repository.version
-                        break
+                # In release, user want to release his package to the first repository
+                # even if the version is matched with the following repositories
+                # so we only check the version of first repository
+                
+                # for repository in self.repositories:
+                if self.decider.metadata_cli.valid_repository_check(package, \
+                        self.repositories[0].version, self.repositories[0].name):
+                    version = self.repositories[0].version
                 if version is None:
                     # user defined repository version is not matched with remote
                     # may caused by swtching repository version after building source package
@@ -201,7 +204,10 @@ class Action(core.action.Action):
                 ErrCode.FileIoErr,
                 ["Can not find .workspace.json files"])
 
-        release_files = "./* ../.workspace.json"
+        release_files = "./* ./.workspace.json"
+        subprocess.run(
+            "cd {} && cp -L ../.workspace.json ./ && cd ../".format(
+                    release_path), shell=True)
         ret = subprocess.run(
             "cd {} && tar -czvf ./../{} {} >/dev/null 2>&1 && cd ../".format(
                     release_path, release_file_name, release_files), shell=True)

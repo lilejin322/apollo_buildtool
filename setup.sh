@@ -88,3 +88,16 @@ export APOLLO_PLUGIN_LIB_PATH="${APOLLO_LIB_PATH}"
 export APOLLO_PLUGIN_DESCRIPTION_PATH="${APOLLO_ENV_WORKROOT:-/apollo_workspace}:${APOLLO_DISTRIBUTION_HOME}"
 
 [[ -z $APOLLO_DISTRIBUTION_VERSION ]] && export APOLLO_DISTRIBUTION_VERSION='9.0'
+
+COMMANDS_BUILDTOOL="pack deploy clean info test profile bootstrap release install login config init create build reinstall usage -h --help"
+
+function _complete_func_buildtool() {
+    COMPREPLY=()
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+    local cmds="$(echo ${COMMANDS_BUILDTOOL} | xargs)"
+
+    COMPREPLY=($(compgen -W "${cmds}" -- ${cur}))
+
+}
+
+complete -F _complete_func_buildtool -o default buildtool

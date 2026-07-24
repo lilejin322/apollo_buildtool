@@ -27,6 +27,7 @@ apollo_plugin(
     deps = [
         "//cyber",
         "//modules/planning/planning_base:apollo_planning_planning_base",
+        "//modules/planning/planning_interface_base:apollo_planning_planning_interface_base",
         "//{{ package_path }}/proto:{{ scenario_name_snake }}_proto",
 {% for dep in build_dependencies %}        "{{ dep }}",
 {% endfor %}

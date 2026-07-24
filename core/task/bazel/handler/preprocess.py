@@ -49,6 +49,7 @@ from core.task.bazel.handler import (
 )
 from core.package_identification.identifier import PackageIdentification
 from core import AptContext, AptStatus
+from core.version_decide.cyberfile import MetaDataCli
 
 logger = get_logger('buildtool')
 
@@ -296,6 +297,15 @@ def _install_apollo_package_in_playgroud(pkg_desc):
     os.remove(install_deb_path)
     shutil.rmtree(process_package_path)
 
+    p = subprocess.run(
+        f"python3 /opt/apollo/neo/packages/buildtool/latest/core/meta.py -n {pkg_desc.name}", 
+        shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if p.returncode != 0:
+        ErrCode.send_error(ErrCode.PackageAttrErr,
+            ["Internal error during install {}".format(pkg_desc.name)],
+            ["please using `buildtool reinstall {}` to reinstall".format(pkg_desc.name)]
+        ) 
+
 def _is_third_party_package(pkg_desc):
     if pkg_desc.name.startswith("3rd") or pkg_desc.name == "bazel-extend-tools":
         return True
@@ -536,8 +546,30 @@ def module_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
                             )
                         ]
                     )
-
-            logger.info("The source code of {} existed in workspace. Force using the source code.".format(pkg_desc.name))
+            # before procceed, install package to avoid symbol missing
+            m = MetaDataCli()
+            ns, _ = m.acquire_cyberfile(pkg_desc.name)
+            if ns is not None:
+                version = None
+                repo_name = None
+                for repo in m.repositories:
+                    repo_version = repo.version
+                    if repo_version == "latest":
+                        repo_version = m.get_latest_version(pkg_desc.name).__str__()
+                    if m.valid_repository_check(pkg_desc.name, repo_version, repo.name):
+                        version = repo_version
+                        repo_name = repo.name
+                        break
+                if version is None:
+                    ErrCode.send_error(
+                        ErrCode.PackageAttrErr,
+                        [f"Internal error: repo version of {pkg_desc.name} not found"],
+                    )
+                pkg_desc.version = version
+                pkg_desc.repository = repo_name
+                _install_package_before_proceed(pkg_desc)
+                pkg_desc.version = "local"
+            logger.info(f"Using Source of {pkg_desc.name}")
         else:
             # install package
             _install_package_before_proceed(pkg_desc)
@@ -560,6 +592,20 @@ def module_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
             content = content.replace("@@REPLACE@@", src_value)
         with open("tools/proto/proto.bzl", "w+", encoding="utf-8") as f:
             f.write(content)
+        
+        # if 3rd legacy module package, create the appropriate softlinks in advance
+        # to prevent the corresponding dynamic libraries from being found. 
+        if pkg_desc.name.startswith("3rd"):
+            apollo_packages_path = Path(get_config("base", "apollo_package_path"))
+            apollo_root_path  = Path(get_config("base", "apollo_root"))
+            
+            package_repo_path = apollo_packages_path / _package_name_to_dir(pkg_desc.name) / "local"
+            package_lib_path = package_repo_path / "lib" 
+
+            dst_lib_dir_wrapper = apollo_root_path / "lib" / pkg_desc.name
+            if not dst_lib_dir_wrapper.exists():
+                subprocess.run(
+                    "ln -snf {} {}".format(str(package_lib_path), str(dst_lib_dir_wrapper)), shell=True)
     else:
         _install_package_before_proceed(pkg_desc)
 
@@ -611,6 +657,17 @@ def module_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
                     ),
                     "Please report this package to Apollo maintainers"
                 )
+
+        # grant permission
+        package_src = pkg_desc.real_src_to_related_path()
+        apollo_package_conf_path = os.path.join("/apollo", package_src)
+        if os.path.exists(apollo_package_conf_path) and \
+                not os.access(apollo_package_conf_path, os.W_OK):
+            subprocess.run(f"sudo chmod 777 {apollo_package_conf_path}", shell=True) 
+            for root, dirs, _ in os.walk(apollo_package_conf_path):
+                for d in dirs:
+                    dir_full = os.path.join(root, d)
+                    subprocess.run(f"sudo chmod 777 {dir_full}", shell=True)
 
         init_func_info = generate_init_func_content(pkg_desc, str(dst_wrapper), workspace)
         if init_func_info is None:
