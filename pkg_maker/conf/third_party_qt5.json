@@ -1,0 +1,20 @@
+{
+    "name": "3rd-qt5",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged qt5.",
+    "deps": [
+        "libtinyxml2-dev", 
+        "apollo-neo-3rd-glog-dev", "apollo-neo-3rd-absl-dev", "apollo-neo-3rd-opencv-dev",
+        "libnuma-dev", "apollo-neo-3rd-mkl-dev", "apollo-neo-3rd-pcl-dev", "apollo-neo-3rd-osqp-dev",
+        "apollo-neo-3rd-proj-dev", "apollo-neo-3rd-magma-dev", "apollo-neo-3rd-tf2-dev"
+    ],
+    "include_path":"",
+    "src_module": "//third_party/qt5",
+    "data": [
+        {
+            "src": "3rd-qt5-dev/local",
+            "des": "-"
+        }
+    ]
+}

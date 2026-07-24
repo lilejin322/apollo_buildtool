@@ -1,0 +1,48 @@
+# !/bin/bash
+APOLLO_PATH="/opt/apollo/neo"
+APOLLO_LIB_PATH="${APOLLO_PATH}/lib"
+APOLLO_INCLUDE_PATH="${APOLLO_PATH}/include"
+APOLLO_BIN_PATH="${APOLLO_PATH}/bin"
+APOLLO_CONF_PATH="${APOLLO_PATH}/conf"
+APOLLO_DAG_PATH="${APOLLO_PATH}/dag"
+APOLLO_DATA_PATH="${APOLLO_PATH}/data"
+APOLLO_PACKAGES_PATH="${APOLLO_PATH}/packages"
+APOLLO_SHARE_PATH="${APOLLO_PATH}/share"
+APOLLO_LAUNCH_PATH="${APOLLO_PATH}/launch"
+APOLLO_LOG_PATH="${APOLLO_DATA_PATH}/log" 
+APOLLO_BAG_PATH="${APOLLO_DATA_PATH}/bag" 
+APOLLO_CORE_PATH="${APOLLO_DATA_PATH}/core" 
+BIN_PATH="/usr/local/bin"
+
+mkdir -p $APOLLO_PATH
+mkdir -p $APOLLO_LIB_PATH
+mkdir -p $APOLLO_INCLUDE_PATH
+mkdir -p $APOLLO_BIN_PATH 
+mkdir -p $APOLLO_CONF_PATH
+mkdir -p $APOLLO_DAG_PATH 
+mkdir -p $APOLLO_DATA_PATH 
+mkdir -p $APOLLO_PACKAGES_PATH 
+mkdir -p $APOLLO_SHARE_PATH
+mkdir -p $APOLLO_LAUNCH_PATH  
+mkdir -p $APOLLO_LOG_PATH
+mkdir -p $APOLLO_BAG_PATH 
+mkdir -p $APOLLO_CORE_PATH
+mkdir -p /usr/local/lib/cmake/apollo
+
+if [ ! -L ${BIN_PATH}/build_tool ]; then
+    ln -s ${APOLLO_PATH}/packages/build_tool/mainboard/mainboard /usr/local/bin/build-tool
+fi
+
+if [ ! -L ${APOLLO_BIN_PATH}/build_tool ]; then
+    ln -s ${APOLLO_PATH}/packages/build_tool/mainboard/mainboard ${APOLLO_BIN_PATH}/build-tool
+fi
+
+if [ ! -L /usr/local/lib/cmake/apollo/apollo-config.cmake ]; then
+    ln -s ${APOLLO_PATH}/packages/build_tool/cmake/apollo-conf.cmake /usr/local/lib/cmake/apollo/apollo-config.cmake
+fi
+
+if [ -L $APOLLO_PATH/setup.sh ]; then
+    rm -f $APOLLO_PATH/setup.sh
+fi
+
+ln -s ${APOLLO_PATH}/packages/build_tool/setup.sh /opt/apollo/neo/setup.sh 

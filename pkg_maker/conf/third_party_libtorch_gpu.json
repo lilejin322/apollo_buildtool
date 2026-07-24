@@ -1,0 +1,26 @@
+
+{
+    "name": "3rd-libtorch-gpu",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged libtorch_gpu.",
+    "deps": [],
+    "include_path":"",
+    "src_module": "//third_party/libtorch",
+    "extend_ops": [
+        "mkdir -p /usr/local",
+        "ln -snf /opt/apollo/neo/packages/3rd-libtorch-gpu-dev /usr/local/libtorch_gpu"
+    ],
+    "data": [
+        {
+            "src": "3rd-libtorch-gpu-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/usr/local/libtorch_gpu/include",
+            "des": "include"
+        },{
+            "src": "/apollo/output/usr/local/libtorch_gpu/lib",
+            "des": "lib"
+        }
+    ]
+}

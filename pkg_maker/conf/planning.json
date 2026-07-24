@@ -1,0 +1,31 @@
+{
+    "name": "planning",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo planning module.",
+    "deps": [
+        "libcolpack-dev", "libadolc-dev", "coinor-libipopt-dev", "libtinyxml2-dev", 
+        "apollo-neo-3rd-ad-rss-lib-dev", "apollo-neo-3rd-libtorch-cpu-dev", "apollo-neo-3rd-mkl-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/planning/",
+        "chmod a+rw /apollo/modules/planning/",
+        
+        "rm -rf /apollo/modules/planning/conf",
+        "rm -rf /apollo/modules/planning/data",
+        "rm -rf /apollo/modules/planning/dag",
+        "rm -rf /apollo/modules/planning/launch",
+
+        "ln -snf /opt/apollo/neo/packages/planning-dev/latest/conf /apollo/modules/planning/conf",
+        "ln -snf /opt/apollo/neo/packages/planning-dev/latest/data /apollo/modules/planning/data",
+        "ln -snf /opt/apollo/neo/packages/planning-dev/latest/dag /apollo/modules/planning/dag",
+        "ln -snf /opt/apollo/neo/packages/planning-dev/latest/launch /apollo/modules/planning/launch"
+    ],
+    "data": [
+        {
+            "src": "planning-dev/local",
+            "des": "-"
+        }
+    ]
+}

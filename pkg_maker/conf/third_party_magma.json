@@ -1,0 +1,23 @@
+
+{
+    "name": "3rd-magma",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged magma. see install_magma.sh in Apollo source code.",
+    "deps": [
+        "libopenblas-dev"
+    ],
+    "include_path": "",
+    "data": [
+        {
+            "src": "/apollo/output/opt/apollo/sysroot/include/magma*",
+            "des": "include/"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libmagma*",
+            "des": "lib/"
+        },{
+            "src": "/apollo/output/pkg_maker/data/3rd-magma/3rd-magma-dev.cyberfile",
+            "des": "cyberfile.xml"
+        }
+    ]
+}

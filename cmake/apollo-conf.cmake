@@ -1,0 +1,35 @@
+SET(APOLLO_ROOT /opt/apollo/neo)
+SET(APOLLO_LIB ${APOLLO_ROOT}/lib)
+SET(APOLLO_PACKAGE ${APOLLO_ROOT}/packages)
+SET(SYSTEM_LIB /usr/local)
+  
+function(import_apollo_lib target)
+include(${target})
+SET(LIBS)
+
+foreach(exclude_module ${EXCLUDE_MODULES})
+    FILE(GLOB LIB_FILES LIST_DIRECTORIES false ${SYSTEM_LIB}/${exclude_module}/lib/*)
+    foreach(LIB_FILE ${LIB_FILES})
+        LIST(APPEND LIBS ${LIB_FILE}) 
+    endforeach(LIB_FILE)
+    include_directories(${SYSTEM_LIB}/${exclude_module}/include) 
+endforeach(exclude_module)
+
+foreach(apollo_module ${APOLLO_MODULES})
+    FILE(GLOB LIB_FILES LIST_DIRECTORIES false ${APOLLO_LIB}/${apollo_module}/*)
+    foreach(LIB_FILE ${LIB_FILES})
+        LIST(APPEND LIBS ${LIB_FILE}) 
+    endforeach(LIB_FILE)
+endforeach(apollo_module)
+
+foreach(user_module ${USER_MODULES})
+    FILE(GLOB LIB_FILES LIST_DIRECTORIES false ${APOLLO_LIB}/${user_module}/*)
+    foreach(LIB_FILE ${LIB_FILES})
+        LIST(APPEND LIBS ${LIB_FILE}) 
+    endforeach(LIB_FILE)
+endforeach(user_module)
+
+include_directories(/opt/apollo/neo/include)
+
+link_libraries(${LIBS})
+endfunction(import_apollo_lib)

@@ -1,0 +1,23 @@
+{
+    "name": "v2x",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo v2x module.",
+    "deps": [],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/v2x/",
+        "chmod a+rw /apollo/modules/v2x/",
+        "ln -snf /opt/apollo/neo/packages/v2x-dev/latest/conf /apollo/modules/v2x/conf",
+        "ln -snf /opt/apollo/neo/packages/v2x-dev/latest/data /apollo/modules/v2x/data",
+        "ln -snf /opt/apollo/neo/packages/v2x-dev/latest/dag /apollo/modules/v2x/dag",
+        "ln -snf /opt/apollo/neo/packages/v2x-dev/latest/launch /apollo/modules/v2x/launch",
+        "ln -snf /opt/apollo/neo/packages/v2x-dev/latest/lib/fusion/apps/libv2x_fusion_component.so /opt/apollo/neo/packages/v2x-dev/latest/lib/libv2x_fusion_component.so"
+    ],
+    "data": [
+        {
+            "src": "v2x-dev/local",
+            "des": "-"
+        }
+    ]
+}

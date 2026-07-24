@@ -1,0 +1,4 @@
+def init_deps():
+@@DEPS@@
+
+workspace_deps = @@DEPS_NAME@@

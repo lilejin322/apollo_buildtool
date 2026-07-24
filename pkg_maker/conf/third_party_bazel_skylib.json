@@ -1,0 +1,18 @@
+
+{
+    "name": "3rd-bazel-skylib",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged 3rd-bazel-skylib.",
+    "deps": [],
+    "include_path": "",
+    "data": [
+        {
+            "src": "/apollo/output/pkg_maker/data/3rd-bazel-skylib",
+            "des": "src"
+        },{
+            "src": "/apollo/output/pkg_maker/data/3rd-bazel-skylib/3rd-bazel-skylib-dev.cyberfile",
+            "des": "cyberfile.xml"
+        }
+    ]
+}

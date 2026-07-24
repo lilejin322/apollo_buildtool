@@ -1,0 +1,35 @@
+{
+    "name": "perception",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo perception module.",
+    "deps": [
+        "libtinyxml2-dev", "libleveldb-dev",
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev", "apollo-neo-common-msgs-dev", "apollo-neo-3rd-gflags-dev",
+        "apollo-neo-3rd-glog-dev", "apollo-neo-3rd-absl-dev", "apollo-neo-3rd-gtest-dev", "apollo-neo-3rd-eigen3-dev", "apollo-neo-3rd-opencv-dev", "apollo-neo-3rd-boost-dev", "apollo-neo-3rd-yaml-cpp-dev", "apollo-neo-map-dev",
+        "apollo-neo-transform-dev", "libnuma-dev", "apollo-neo-3rd-libtorch-gpu-dev", "apollo-neo-3rd-mkl-dev", "apollo-neo-3rd-pcl-dev", "apollo-neo-3rd-osqp-dev",
+        "apollo-neo-3rd-proj-dev", "apollo-neo-3rd-magma-dev", "apollo-neo-3rd-tf2-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/perception/",
+        "chmod a+rw /apollo/modules/perception/",
+
+        "rm -rf /apollo/modules/perception/production",
+        "rm -rf /apollo/modules/perception/data",
+        "rm -rf /apollo/modules/perception/pipeline",
+
+        "ln -snf /opt/apollo/neo/packages/perception-dev/latest/addition_data/production /apollo/modules/perception/production",
+        "ln -snf /opt/apollo/neo/packages/perception-dev/latest/data /apollo/modules/perception/data",
+        "ln -snf /opt/apollo/neo/packages/perception-dev/latest/addition_data/pipeline /apollo/modules/perception/pipeline",
+        "ln -snf /opt/apollo/neo/packages/perception-dev/latest/lib/camera/lib/motion_service/libmotion_service.so /opt/apollo/neo/packages/perception-dev/latest/lib/libmotion_service.so",
+        "ln -snf /opt/apollo/neo/packages/perception-dev/latest/lib/onboard/component/libperception_component_camera.so /opt/apollo/neo/packages/perception-dev/latest/lib/libperception_component_camera.so",
+        "ln -snf /opt/apollo/neo/packages/perception-dev/latest/lib/onboard/component/libperception_component_lidar.so /opt/apollo/neo/packages/perception-dev/latest/lib/libperception_component_lidar.so"
+    ],
+    "data": [
+        {
+            "src": "perception-dev/local",
+            "des": "-"
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+
+{
+    "name": "3rd-rules-proto",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged rules-proto.",
+    "deps": [],
+    "include_path": "",
+    "data": [
+        {
+            "src": "/apollo/output/pkg_maker/data/3rd-rules-proto",
+            "des": "src"
+        },{
+            "src": "/apollo/output/pkg_maker/data/3rd-rules-proto/3rd-rules-proto-dev.cyberfile",
+            "des": "cyberfile.xml"
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+{
+    "name": "routing",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo routing module.",
+    "deps": [
+        "apollo-neo-3rd-gflags-dev", "apollo-neo-3rd-gtest-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/routing/",
+        "chmod a+rw /apollo/modules/routing/",
+        "ln -snf /opt/apollo/neo/packages/routing-dev/latest/conf /apollo/modules/routing/conf",
+        "ln -snf /opt/apollo/neo/packages/routing-dev/latest/dag /apollo/modules/routing/dag",
+        "ln -snf /opt/apollo/neo/packages/routing-dev/latest/launch /apollo/modules/routing/launch"
+    ],
+    "data": [
+        {
+            "src": "routing-dev/local",
+            "des": "-"
+        }
+    ]
+}

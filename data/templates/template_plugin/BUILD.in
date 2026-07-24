@@ -1,0 +1,40 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//tools:cpplint.bzl", "cpplint")
+load("//tools:apollo.bzl", "cyber_plugin_description")
+load("//tools:apollo_package.bzl", "apollo_package")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "{{ name }}_files",
+    srcs = glob([
+        "conf/**",
+    ])
+)
+
+cyber_plugin_description(
+    name = "plugin_{{ name }}_description",
+    description = ":plugin_{{ name }}_description.xml",
+    plugin = ":lib{{ name }}.so",
+)
+
+cc_binary(
+    name = "lib{{ name }}.so",
+    linkshared = True,
+    linkstatic = True,
+    deps = [":{{ name }}_lib"],
+)
+
+cc_library(
+    name = "{{ name }}_lib",
+    srcs = ["{{ name }}.cc"],
+    hdrs = ["{{ name }}.h"],
+    deps = [
+        "//cyber",
+    ],
+    alwayslink = True,
+    linkstatic = True,
+)
+
+apollo_package()
+cpplint()

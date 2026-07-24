@@ -1,0 +1,30 @@
+{
+    "name": "guardian",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo guardian module.",
+    "deps": [
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev", "apollo-neo-common-msgs-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/guardian",
+        "chmod a+rw /apollo/modules/guardian",
+
+        "rm -rf /apollo/modules/guardian/conf",
+        "rm -rf /apollo/modules/guardian/data",
+        "rm -rf /apollo/modules/guardian/dag",
+        "rm -rf /apollo/modules/guardian/launch",
+
+        "ln -snf /opt/apollo/neo/packages/guardian-dev/latest/conf /apollo/modules/guardian/conf",
+        "ln -snf /opt/apollo/neo/packages/guardian-dev/latest/data /apollo/modules/guardian/data",
+        "ln -snf /opt/apollo/neo/packages/guardian-dev/latest/dag /apollo/modules/guardian/dag",
+        "ln -snf /opt/apollo/neo/packages/guardian-dev/latest/launch /apollo/modules/guardian/launch"
+    ],
+    "data": [
+        {
+            "src": "guardian-dev/local",
+            "des": "-"
+        }
+    ]
+}

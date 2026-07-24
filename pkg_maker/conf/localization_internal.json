@@ -1,0 +1,37 @@
+{
+    "name": "localization-internal",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo localization module.",
+    "deps": [
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev", "apollo-neo-common-msgs-dev", "apollo-neo-3rd-glog-dev", "apollo-neo-3rd-yaml-cpp-dev", "apollo-neo-3rd-gtest-dev",
+        "apollo-neo-3rd-pcl-dev", "apollo-neo-3rd-eigen3-dev", "apollo-neo-3rd-fastrtps-dev", "apollo-neo-3rd-absl-dev", "apollo-neo-3rd-proj-dev", "apollo-neo-3rd-opencv-dev", "apollo-neo-transform-dev", "apollo-neo-3rd-localization-msf-dev",
+        "apollo-neo-3rd-gflags-dev", "libatlas-base-dev", "libatlas3-base", "libopenblas-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/localization/",
+        "chmod a+rw /apollo/modules/localization/",
+
+        "rm -rf /apollo/modules/localization/conf",
+        "rm -rf /apollo/modules/localization/data",
+        "rm -rf /apollo/modules/localization/dag",
+        "rm -rf /apollo/modules/localization/launch",
+        "rm -rf /apollo/modules/localization/msf",
+
+        "ln -snf /opt/apollo/neo/packages/localization-internal-dev/latest/conf /apollo/modules/localization/conf",
+        "ln -snf /opt/apollo/neo/packages/localization-internal-dev/latest/data /apollo/modules/localization/data",
+        "ln -snf /opt/apollo/neo/packages/localization-internal-dev/latest/dag /apollo/modules/localization/dag",
+        "ln -snf /opt/apollo/neo/packages/localization-internal-dev/latest/launch /apollo/modules/localization/launch",
+        "ln -snf /opt/apollo/neo/packages/localization-internal-dev/latest/addition_data/msf /apollo/modules/localization/msf",
+	"ln -snf /opt/apollo/neo/packages/localization-internal-dev/latest/addition_data/mainthread_msf /apollo/modules/localization/mainthread_msf",
+        "ln -snf /usr/lib/x86_64-linux-gnu/libGLEW.so.2.0  /usr/lib/x86_64-linux-gnu/libGLEW.so.2.1",
+        "patchelf --set-rpath /opt/apollo/neo/packages/3rd-mainthread-localization-msf-dev/latest/lib /opt/apollo/neo/packages/localization-internal-dev/latest/lib/mainthread_msf/libmsf_localization_component_mainthread.so"
+    ],
+    "data": [
+        {
+            "src": "localization-internal-dev/local",
+            "des": "-"
+        }
+    ]
+}

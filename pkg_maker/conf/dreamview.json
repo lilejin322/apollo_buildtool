@@ -1,0 +1,31 @@
+
+{
+    "name": "dreamview",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo dreamview module.",
+    "deps": [
+        "libtinyxml2-dev", "python3", "curl",
+        "apollo-neo-3rd-pcl-dev", "apollo-neo-3rd-civetweb-dev", 
+        "apollo-neo-3rd-proj-dev", "apollo-neo-3rd-opencv-dev", "apollo-neo-3rd-boost-dev",
+        "apollo-neo-3rd-absl-dev", "apollo-neo-3rd-osqp-dev",
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev", "apollo-neo-map-dev", "apollo-neo-transform-dev",
+        "apollo-neo-calibration-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/dreamview",
+        "chmod a+rw /apollo/modules/dreamview",
+        "ln -snf /opt/apollo/neo/packages/dreamview-dev/latest/conf /apollo/modules/dreamview/conf",
+        "ln -snf /opt/apollo/neo/packages/dreamview-dev/latest/launch /apollo/modules/dreamview/launch",
+        "mkdir -p /apollo/modules/dreamview/frontend",
+        "chmod a+rw /apollo/modules/dreamview/frontend",
+        "ln -snf /opt/apollo/neo/packages/dreamview-dev/latest/frontend/dist /apollo/modules/dreamview/frontend/dist"
+    ],
+    "data": [
+        {
+            "src": "dreamview-dev/local",
+            "des": "-"
+        }
+    ]
+}

@@ -1,0 +1,8 @@
+Package: @@NAME@@
+Version: @@VERSION@@
+Section: Apollo
+Priority: optional
+Architecture: @@ARCH@@
+Maintainer: Apollo Developers (apollo-support@baidu.com)
+Depends: @@DEPENDS@@
+Description: @@DEPSCRIPTION@@

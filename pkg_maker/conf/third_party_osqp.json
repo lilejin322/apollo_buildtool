@@ -1,0 +1,22 @@
+
+{
+    "name": "3rd-osqp",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged osqp.",
+    "deps": [],
+    "include_path":"osqp",
+    "src_module": "//third_party/osqp",
+    "data": [
+        {
+            "src": "3rd-osqp-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/include/osqp",
+            "des": "include/osqp"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libosqp.so",
+            "des": "lib/libosqp.so"
+        }
+    ]
+}

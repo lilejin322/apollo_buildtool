@@ -1,0 +1,14 @@
+{
+    "name": "3rd-localization-msf",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged localization_msf.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-localization-msf-dev/local",
+            "des": "-"
+        }
+    ]
+}

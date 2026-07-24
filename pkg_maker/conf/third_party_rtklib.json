@@ -1,0 +1,14 @@
+{
+    "name": "3rd-rtklib",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged rtklib.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-rtklib-dev/local",
+            "des": "-"
+        }
+    ]
+}

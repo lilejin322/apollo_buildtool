@@ -1,0 +1,21 @@
+
+{
+    "name": "3rd-gflags",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged gflags.",
+    "deps": [],
+    "include_path":"gflags",
+    "data": [
+        {
+            "src": "3rd-gflags-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/usr/local/include/gflags",
+            "des": "include/gflags"
+        },{
+            "src": "/apollo/output/usr/local/lib/libgflags*",
+            "des": "lib/"
+        }
+    ]
+}

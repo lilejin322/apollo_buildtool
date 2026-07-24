@@ -1,0 +1,20 @@
+{
+    "name": "3rd-ceres",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged ceres.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-ceres-dev/local",
+            "des": "-"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/include/ceres",
+            "des": "include"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libceres*",
+            "des": "lib/"
+        }
+    ]
+}

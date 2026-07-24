@@ -1,0 +1,14 @@
+{
+    "name": "3rd-eigen-checks",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged eigen checks.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-eigen-checks-dev/local",
+            "des": "-"
+        }
+    ]
+}

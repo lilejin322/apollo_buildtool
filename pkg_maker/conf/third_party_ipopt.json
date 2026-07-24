@@ -1,0 +1,25 @@
+
+{
+    "name": "3rd-ipopt",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged ipopt.",
+    "deps": ["coinor-libipopt-dev"],
+    "include_path":"",
+    "src_module": "//third_party/ipopt",
+    "extend_ops": [
+        "sed -i '/#define __IPSMARTPTR_HPP__/a\\#define HAVE_CSTDDEF' /usr/include/coin/IpSmartPtr.hpp"
+    ],
+    "data": [
+        {
+            "src": "3rd-ipopt-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/usr/include/coin",
+            "des": "include/coin"
+        },{
+            "src": "/apollo/output/usr/lib/libipopt*",
+            "des": "lib/"
+        }
+    ]
+}

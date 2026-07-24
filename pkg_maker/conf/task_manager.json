@@ -1,0 +1,21 @@
+{
+    "name": "task-manager",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo task manager module.",
+    "deps": [],
+    "include_path": "",
+    "src_module": "//modules/task_manager",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/task_manager/",
+        "chmod a+rw /apollo/modules/task_manager/",
+        "ln -snf /opt/apollo/neo/packages/task-manager-dev/latest/dag /apollo/modules/task_manager/dag",
+        "ln -snf /opt/apollo/neo/packages/task-manager-dev/latest/conf /apollo/modules/task_manager/conf"
+    ],
+    "data": [
+        {
+            "src": "task-manager-dev/local",
+            "des": "-"
+        }
+    ]
+}

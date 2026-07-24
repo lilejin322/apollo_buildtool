@@ -1,0 +1,24 @@
+{
+    "name": "monitor",
+    "ver": "1.0.0.2",
+    "arch": "amd64",
+    "description": "Apollo monitor module.",
+    "deps": ["apollo-neo-3rd-protobuf-dev", "apollo-neo-cyber-dev", "apollo-neo-3rd-glog-dev", "apollo-neo-dreamview-dev"],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/monitor",
+        "chmod a+rw /apollo/modules/monitor",
+
+        "rm -rf /apollo/modules/monitor/launch",
+        "rm -rf /apollo/modules/monitor/dag",
+
+        "ln -snf /opt/apollo/neo/packages/monitor-dev/latest/launch /apollo/modules/monitor/launch",
+        "ln -snf /opt/apollo/neo/packages/monitor-dev/latest/dag /apollo/modules/monitor/dag"
+    ],
+    "data": [
+        {
+            "src": "monitor-dev/local",
+            "des": "-"
+        }
+    ]
+}

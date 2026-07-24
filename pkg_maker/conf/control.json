@@ -1,0 +1,30 @@
+{
+    "name": "control",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo control module.",
+    "deps": [
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev", "apollo-neo-common-msgs-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/control",
+        "chmod a+rw /apollo/modules/control",
+
+        "rm -rf /apollo/modules/control/conf",
+        "rm -rf /apollo/modules/control/data",
+        "rm -rf /apollo/modules/control/dag",
+        "rm -rf /apollo/modules/control/launch",
+
+        "ln -snf /opt/apollo/neo/packages/control-dev/latest/conf /apollo/modules/control/conf",
+        "ln -snf /opt/apollo/neo/packages/control-dev/latest/data /apollo/modules/control/data",
+        "ln -snf /opt/apollo/neo/packages/control-dev/latest/dag /apollo/modules/control/dag",
+        "ln -snf /opt/apollo/neo/packages/control-dev/latest/launch /apollo/modules/control/launch"
+    ],
+    "data": [
+        {
+            "src": "control-dev/local",
+            "des": "-"
+        }
+    ]
+}

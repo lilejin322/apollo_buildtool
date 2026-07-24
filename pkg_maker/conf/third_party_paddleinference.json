@@ -1,0 +1,15 @@
+
+{
+    "name": "3rd-paddleinference",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged paddleinference.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-paddleinference-dev/local",
+            "des": "-"
+        }
+    ]
+}

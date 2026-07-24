@@ -1,0 +1,24 @@
+{
+    "name": "storytelling",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo storytelling module.",
+    "deps": [
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev", "apollo-neo-common-msgs-dev", "apollo-neo-map-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/storytelling",
+        "chmod a+rw /apollo/modules/storytelling",
+        "ln -snf /opt/apollo/neo/packages/storytelling-dev/latest/conf /apollo/modules/storytelling/conf",
+        "ln -snf /opt/apollo/neo/packages/storytelling-dev/latest/data /apollo/modules/storytelling/data",
+        "ln -snf /opt/apollo/neo/packages/storytelling-dev/latest/dag /apollo/modules/storytelling/dag",
+        "ln -snf /opt/apollo/neo/packages/storytelling-dev/latest/launch /apollo/modules/storytelling/launch"
+    ],
+    "data": [
+        {
+            "src": "storytelling-dev/local",
+            "des": "-"
+        }
+    ]
+}

@@ -1,0 +1,20 @@
+{
+    "name": "3rd-pangolin",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged pangolin.",
+    "deps": ["libavformat57", "libavutil55", "libavcodec57", "libswscale4", "libpython2.7-dev", "libglew-dev"],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-pangolin-dev/local",
+            "des": "-"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/include/pangolin",
+            "des": "include"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libpangolin*",
+            "des": "lib/"
+        }
+    ]
+}

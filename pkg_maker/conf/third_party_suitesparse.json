@@ -1,0 +1,53 @@
+{
+    "name": "3rd-suitesparse",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged suitesparse.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-suitesparse-dev/local",
+            "des": "-"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/include/suitesparse",
+            "des": "include"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libsuitesparseconfig*",
+            "des": "lib/"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libamd*",
+            "des": "lib/"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libcamd*",
+            "des": "lib/"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libcolamd*",
+            "des": "lib/"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libccolamd*",
+            "des": "lib/"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libspqr*",
+            "des": "lib/"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libcholmod*",
+            "des": "lib/"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libcxsparse*",
+            "des": "lib/"
+        }, {
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libmetis*",
+            "des": "lib/"
+        }
+    ]
+}
+
+
+
+
+
+
+
+
+

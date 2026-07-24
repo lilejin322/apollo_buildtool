@@ -1,0 +1,41 @@
+{
+    "name": "3rd-ffmpeg",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged ffmpeg.",
+    "deps": ["libx265-146", "libass9", "libfdk-aac1", "libmp3lame0", "libopus0", "libtheora0", "libvorbis0a", "libvorbisenc2", "libvpx5", "libx264-152","libnuma-dev"],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-ffmpeg-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/include/libavcodec",
+            "des": "include/"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/include/libavformat",
+            "des": "include/"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/include/libswscale",
+            "des": "include/"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/include/libavutil",
+            "des": "include/"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libavcodec*",
+            "des": "lib/"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libavformat*",
+            "des": "lib/"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libswscale*",
+            "des": "lib/"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libavutil*",
+            "des": "lib/"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libswresample*",
+            "des": "lib/"
+        }
+    ]
+}

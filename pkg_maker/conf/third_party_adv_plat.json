@@ -1,0 +1,23 @@
+{
+    "name": "3rd-adv-plat",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged adv-plat.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-adv-plat-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/opt/apollo/pkgs/adv_plat/include/*",
+            "des": "include/"
+        },{
+            "src": "/apollo/output/opt/apollo/pkgs/adv_plat/lib/libadv_trigger*",
+            "des": "lib/"
+        },{
+            "src": "/apollo/output/opt/apollo/pkgs/adv_plat/lib/libadv_bcan*",
+            "des": "lib/"
+        }
+    ]
+}

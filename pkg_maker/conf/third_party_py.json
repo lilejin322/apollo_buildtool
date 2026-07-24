@@ -1,0 +1,14 @@
+{
+    "name": "3rd-py",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged bazel rules of python for config.",
+    "deps": [],
+    "src_module": "//third_party/py",
+    "data": [
+        {
+            "src": "3rd-py-dev/local",
+            "des": "-"
+        }
+    ]
+}

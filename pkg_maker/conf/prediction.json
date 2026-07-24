@@ -1,0 +1,32 @@
+{
+    "name": "prediction",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo prediction module.",
+    "deps": [
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev", "apollo-neo-common-msgs-dev", "apollo-neo-3rd-gflags-dev",
+        "apollo-neo-3rd-glog-dev", "apollo-neo-3rd-absl-dev", "apollo-neo-3rd-gtest-dev", "apollo-neo-3rd-eigen3-dev", "apollo-neo-3rd-opencv-dev", "apollo-neo-3rd-boost-dev", "apollo-neo-3rd-yaml-cpp-dev", "apollo-neo-map-dev",
+        "apollo-neo-transform-dev", "libnuma-dev", "apollo-neo-3rd-libtorch-cpu-dev", "apollo-neo-3rd-mkl-dev", "apollo-neo-3rd-pcl-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/prediction/",
+        "chmod a+rw /apollo/modules/prediction/",
+
+        "rm -rf /apollo/modules/prediction/conf",
+        "rm -rf /apollo/modules/prediction/data",
+        "rm -rf /apollo/modules/prediction/dag",
+        "rm -rf /apollo/modules/prediction/launch",
+
+        "ln -snf /opt/apollo/neo/packages/prediction-dev/latest/conf /apollo/modules/prediction/conf",
+        "ln -snf /opt/apollo/neo/packages/prediction-dev/latest/data /apollo/modules/prediction/data",
+        "ln -snf /opt/apollo/neo/packages/prediction-dev/latest/dag /apollo/modules/prediction/dag",
+        "ln -snf /opt/apollo/neo/packages/prediction-dev/latest/launch /apollo/modules/prediction/launch"
+    ],
+    "data": [
+        {
+            "src": "prediction-dev/local",
+            "des": "-"
+        }
+    ]
+}

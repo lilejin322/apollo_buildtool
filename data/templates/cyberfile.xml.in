@@ -1,0 +1,14 @@
+<package format="2">
+  <name>@@NAME@@</name>
+  <version>local</version>
+  <description>
+    @@DESCRIPTION@@
+  </description>
+  
+  <maintainer email="@@EMAIL@@">@@AUTHOR@@</maintainer>
+  <license>Apache License 2.0</license>
+
+  <type>@@TYPE@@</type>
+  <src_path>@@SAVE_PATH@@</src_path>
+  
+</package>

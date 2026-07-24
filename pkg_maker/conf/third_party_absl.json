@@ -1,0 +1,22 @@
+
+{
+    "name": "3rd-absl",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged abseil.",
+    "deps": [],
+    "include_path":"",
+    "src_module": "//third_party/absl",
+    "data": [
+        {
+            "src": "3rd-absl-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/opt/apollo/absl/include",
+            "des": "include"
+        },{
+            "src": "/apollo/output/opt/apollo/absl/lib",
+            "des": "lib"
+        }
+    ]
+}

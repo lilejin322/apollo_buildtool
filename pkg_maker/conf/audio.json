@@ -1,0 +1,28 @@
+{
+    "name": "audio",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo audio module.",
+    "deps": [
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev", "apollo-neo-common-msgs-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/audio",
+        "chmod a+rw /apollo/modules/audio",
+        "rm -rf /apollo/modules/audio/conf",
+        "rm -rf /apollo/modules/audio/data",
+        "rm -rf /apollo/modules/audio/dag",
+        "rm -rf /apollo/modules/audio/launch",
+        "ln -snf /opt/apollo/neo/packages/audio-dev/latest/conf /apollo/modules/audio/conf",
+        "ln -snf /opt/apollo/neo/packages/audio-dev/latest/data /apollo/modules/audio/data",
+        "ln -snf /opt/apollo/neo/packages/audio-dev/latest/dag /apollo/modules/audio/dag",
+        "ln -snf /opt/apollo/neo/packages/audio-dev/latest/launch /apollo/modules/audio/launch"
+    ],
+    "data": [
+        {
+            "src": "audio-dev/local",
+            "des": "-"
+        }
+    ]
+}

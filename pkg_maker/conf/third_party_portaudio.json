@@ -1,0 +1,26 @@
+{
+    "name": "3rd-portaudio",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged portaudio.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-portaudio-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/usr/include/portaudio*",
+            "des": "include/"
+        },{
+            "src": "/apollo/output/usr/lib/x86_64-linux-gnu/libasound*",
+            "des": "lib/"
+        },{
+            "src": "/apollo/output/usr/lib/x86_64-linux-gnu/libportaudio*",
+            "des": "lib/"
+        },{
+            "src": "/apollo/output/usr/lib/x86_64-linux-gnu/libjack*",
+            "des": "lib/"
+        }
+    ]
+}

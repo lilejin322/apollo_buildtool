@@ -1,0 +1,21 @@
+{
+    "name": "calibration",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo dev calibration data.",
+    "deps": [],
+    "include_path": "",
+    "src_module": "//modules/calibration",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/calibration",
+        "chmod a+rw /apollo/modules/calibration",
+        "rm -rf /apollo/modules/calibration/data",
+        "ln -snf /opt/apollo/neo/packages/calibration-dev/latest/data /apollo/modules/calibration/data"
+    ],
+    "data": [
+        {
+            "src": "calibration-dev/local",
+            "des": "-"
+        }
+    ]
+}

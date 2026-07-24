@@ -1,0 +1,6 @@
+def @@FUNC@@():
+    native.new_local_repository(
+        name = "@@NAME@@",
+        build_file = clean_dep("@@BUILD_FILE@@"),
+        path = "@@LOCAL_PATH@@",
+    )

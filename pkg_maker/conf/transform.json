@@ -1,0 +1,24 @@
+{
+    "name": "transform",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo transform module.",
+    "deps": [
+        "apollo-neo-3rd-tf2-dev"
+    ],
+    "include_path": "",
+    "src_module": "//modules/transform",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/transform/",
+        "chmod a+rw /apollo/modules/transform/",
+        "ln -snf /opt/apollo/neo/packages/transform-dev/latest/conf /apollo/modules/transform/conf",
+        "ln -snf /opt/apollo/neo/packages/transform-dev/latest/dag /apollo/modules/transform/dag",
+        "ln -snf /opt/apollo/neo/packages/transform-dev/latest/launch /apollo/modules/transform/launch"
+    ],
+    "data": [
+        {
+            "src": "transform-dev/local",
+            "des": "-"
+        }
+    ]
+}

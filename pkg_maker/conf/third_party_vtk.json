@@ -1,0 +1,21 @@
+
+{
+    "name": "3rd-vtk",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged vtk.",
+    "deps": ["libglew2.0", "libdouble-conversion1", "libxml2", "libjsoncpp1", "libhdf5-100", "libgl1-mesa-dev", "libxt-dev"],
+    "include_path":"vtk",
+    "data": [
+        {
+            "src": "3rd-vtk-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/include/vtk-8.2",
+            "des": "include/vtk-8.2"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libvtk*",
+            "des": "lib/"
+        }
+    ]
+}

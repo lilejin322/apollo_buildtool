@@ -1,0 +1,19 @@
+{
+    "name": "origin-scripts",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "origin scripts",
+    "deps": [],
+    "include_path": "",
+    "data": [
+        {
+            "src": "scripts-dev/local",
+            "des": "-"
+        }
+    ],
+    "extend_ops": [
+        "ln -snf /opt/apollo/neo/packages/origin-scripts-dev/latest/src /apollo/scripts",
+        "sed -i \"s/source \\/apollo\\/scripts\\/apollo_base.sh//g\" /opt/apollo/neo/packages/origin-scripts-dev/latest/src/record_bag.py",
+        "sed -i \"s/source \\/apollo\\/cyber\\/setup.bash//g\" /opt/apollo/neo/packages/origin-scripts-dev/latest/src/record_bag.py"
+    ]
+}

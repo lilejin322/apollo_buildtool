@@ -1,0 +1,11 @@
+cc_library(
+    name = "@@BAZEL_LIB_NAME@@",
+    @@SRC_OBJ@@
+    includes = ["@@INCLUDE_DIR@@"],
+    linkopts = [
+    @@LINK_LIBS@@
+    ],
+    include_prefix = "@@PREFIX@@",
+    strip_include_prefix = "@@STRIP_PREFIX@@",
+)
+

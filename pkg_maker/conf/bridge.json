@@ -1,0 +1,30 @@
+{
+    "name": "bridge",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo bridge module.",
+    "deps": [
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/bridge",
+        "chmod a+rw /apollo/modules/bridge",
+        
+        "rm -rf /apollo/modules/bridge/conf",
+        "rm -rf /apollo/modules/bridge/data",
+        "rm -rf /apollo/modules/bridge/dag",
+        "rm -rf /apollo/modules/bridge/launch",
+
+        "ln -snf /opt/apollo/neo/packages/bridge-dev/latest/conf /apollo/modules/bridge/conf",
+        "ln -snf /opt/apollo/neo/packages/bridge-dev/latest/data /apollo/modules/bridge/data",
+        "ln -snf /opt/apollo/neo/packages/bridge-dev/latest/dag /apollo/modules/bridge/dag",
+        "ln -snf /opt/apollo/neo/packages/bridge-dev/latest/launch /apollo/modules/bridge/launch"
+    ],
+    "data": [
+        {
+            "src": "bridge-dev/local",
+            "des": "-"
+        }
+    ]
+}

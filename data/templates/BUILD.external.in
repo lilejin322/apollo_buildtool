@@ -1,0 +1,12 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+  
+
+cc_library(
+    name = "@@NAME@@",
+    includes = @@INCLUDE_SEARCH_DIR@@,
+    @@LIBS@@,
+    include_prefix = "@@PREFIX@@",
+    strip_include_prefix = "@@STRIP_PREFIX@@",
+    visibility = ["//visibility:public"],
+    deps = @@DEPS@@,
+)

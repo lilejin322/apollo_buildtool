@@ -1,0 +1,20 @@
+{
+    "name": "3rd-mainthread-localization-msf",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged mainthread localiation.",
+    "deps": ["patchelf"],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-mainthread-localization-msf-dev/local",
+            "des": "-"
+        }
+    ],
+    "extend_ops": [
+        "patchelf --set-rpath /opt/apollo/neo/packages/3rd-mainthread-localization-msf-dev/latest/lib /opt/apollo/neo/packages/3rd-mainthread-localization-msf-dev/latest/lib/liblocal-map.so",
+        "patchelf --set-rpath /opt/apollo/neo/packages/3rd-mainthread-localization-msf-dev/latest/lib /opt/apollo/neo/packages/3rd-mainthread-localization-msf-dev/latest/lib/libnew_local-lidar.so",
+        "patchelf --set-rpath /opt/apollo/neo/packages/3rd-mainthread-localization-msf-dev/latest/lib /opt/apollo/neo/packages/3rd-mainthread-localization-msf-dev/latest/src/mainthread/local_lidar/x86_64/lib/libnew_local-lidar.so",
+	    "patchelf --set-rpath /opt/apollo/neo/packages/3rd-mainthread-localization-msf-dev/latest/lib /opt/apollo/neo/packages/3rd-mainthread-localization-msf-dev/latest/src/mainthread/local_map/x86_64/lib/liblocal-map.so"
+    ]
+}

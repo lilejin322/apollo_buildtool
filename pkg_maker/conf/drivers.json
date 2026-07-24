@@ -1,0 +1,43 @@
+
+{
+    "name": "drivers",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo drivers module.",
+    "deps": [
+        "apollo-neo-3rd-opencv-dev", "apollo-neo-3rd-boost-dev",
+        "apollo-neo-3rd-absl-dev",
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/drivers",
+        "chmod a+rw /apollo/modules/drivers",
+        "rm -rf /apollo/modules/drivers/camera",
+        "rm -rf /apollo/modules/drivers/conti_radar",
+        "rm -rf /apollo/modules/drivers/gnss",
+        "rm -rf /apollo/modules/drivers/lidar",
+        "rm -rf /apollo/modules/drivers/microphone",
+        "rm -rf /apollo/modules/drivers/racobit_radar",
+        "rm -rf /apollo/modules/drivers/smartereye",
+        "rm -rf /apollo/modules/drivers/tools",
+        "rm -rf /apollo/modules/drivers/ultrasonic_radar",
+        "rm -rf /apollo/modules/drivers/video",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/camera /apollo/modules/drivers/camera",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/conti_radar /apollo/modules/drivers/conti_radar",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/gnss /apollo/modules/drivers/gnss",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/lidar /apollo/modules/drivers/lidar",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/microphone /apollo/modules/drivers/microphone",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/racobit_radar /apollo/modules/drivers/racobit_radar",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/smartereye /apollo/modules/drivers/smartereye",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/tools /apollo/modules/drivers/tools",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/ultrasonic_radar /apollo/modules/drivers/ultrasonic_radar",
+        "ln -snf /opt/apollo/neo/packages/drivers-dev/latest/addition_data/video /apollo/modules/drivers/video"
+    ],
+    "data": [
+        {
+            "src": "drivers-dev/local",
+            "des": "-"
+        }
+    ]
+}

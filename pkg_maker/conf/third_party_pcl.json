@@ -1,0 +1,24 @@
+{
+    "name": "3rd-pcl",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged pcl.",
+    "deps": [
+        "libusb-1.0-0", "libopenni0", "libfreetype6", "libtiff5", "libdouble-conversion1", "libpcap0.8", "libqhull7", "libflann-dev",
+        "apollo-neo-3rd-vtk-dev"
+    ],
+    "include_path":"pcl-1.10/pcl",
+    "src_module": "//third_party/pcl",
+    "data": [
+        {
+            "src": "3rd-pcl-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/include/pcl-1.10/pcl",
+            "des": "include"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libpcl_*",
+            "des": "lib/"
+        }
+    ]
+}

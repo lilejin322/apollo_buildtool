@@ -1,0 +1,25 @@
+{
+    "name": "map",
+    "ver": "1.0.0.2",
+    "arch": "amd64",
+    "description": "map module build with cpu.",
+    "deps": [],
+    "include_path": "",
+    "src_module": "//modules/map",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/map",
+        "chmod a+rw /apollo/modules/map",
+
+        "rm -rf /apollo/modules/map/data",
+        "rm -rf /apollo/modules/map/relative_map",
+
+        "ln -snf /opt/apollo/neo/packages/map-dev/latest/src/data /apollo/modules/map/data",
+        "ln -snf /opt/apollo/neo/packages/map-dev/latest/addition_data/relative_map /apollo/modules/map/relative_map"
+    ],
+    "data": [
+        {
+            "src": "map-dev/local",
+            "des": "-"
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+{
+    "name": "common-msgs",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "All stand messags proto of apollo.",
+    "deps": [],
+    "include_path": "",
+    "src_module": "//modules/common_msgs",
+    "data": [
+        {
+            "src": "common-msgs-dev/local",
+            "des": "-"
+        }
+    ]
+}

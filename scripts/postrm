@@ -1,0 +1,5 @@
+# !/bin/sh
+rm -f /usr/local/bin/build-tool
+rm -f /opt/apollo/neo/bin/build-tool
+rm -rf /usr/local/lib/cmake/apollo/apollo-config.cmake
+rm -f /opt/apollo/neo/setup.sh

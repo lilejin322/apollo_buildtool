@@ -1,0 +1,12 @@
+module_config {
+  module_library : "{{ package_path }}/lib{{ name }}_component.so"
+  components {
+    class_name : "{{ class_name }}"
+    config {
+      name : "{{ class_name }}"
+      readers {
+        channel: "/apollo/{{ channel }}"
+      }
+    }
+  }
+}

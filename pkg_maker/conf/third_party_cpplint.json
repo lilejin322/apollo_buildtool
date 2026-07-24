@@ -1,0 +1,14 @@
+{
+    "name": "3rd-cpplint",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged cpplint.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-cpplint-dev/local",
+            "des": "-"
+        }
+    ]
+}

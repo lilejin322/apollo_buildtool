@@ -1,0 +1,24 @@
+
+{
+    "name": "buildtool",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Buildtool is based on bazel, it is helpful when use apollo packages.",
+    "deps": [],
+    "include_path": "",
+    "extend_ops": [
+        "ln -snf /opt/apollo/neo/packages/buildtool-dev/latest/bin/mainboard.py /usr/bin/buildtool",
+        "ln -snf /opt/apollo/neo/packages/buildtool-dev/latest/setup.sh /opt/apollo/neo/setup.sh",
+        "ln -snf /opt/apollo/neo/packages/buildtool-dev/latest/scripts/update_dylib.sh /opt/apollo/neo/update_dylib.sh",
+        "pip3 install requests -i https://mirror.baidu.com/pypi/simple/ --trusted-host mirror.baidu.com"
+    ],
+    "data": [
+        {
+            "src": "/apollo/output/buildtool/",
+            "des": "-"
+        },{
+            "src": "/apollo/output/pkg_maker/data/buildtool/buildtool-dev.cyberfile",
+            "des": "cyberfile.xml"
+        }
+    ]
+}

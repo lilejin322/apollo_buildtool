@@ -1,0 +1,31 @@
+{
+    "name": "canbus",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo canbus module.",
+    "deps": [
+        "apollo-neo-cyber-dev", "apollo-neo-common-dev", "apollo-neo-common-msgs-dev"
+    ],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/canbus",
+        "chmod a+rw /apollo/modules/canbus",
+
+        "rm -rf /apollo/modules/canbus/conf",
+        "rm -rf /apollo/modules/canbus/data",
+        "rm -rf /apollo/modules/canbus/dag",
+        "rm -rf /apollo/modules/canbus/launch",
+
+
+        "ln -snf /opt/apollo/neo/packages/canbus-dev/latest/conf /apollo/modules/canbus/conf",
+        "ln -snf /opt/apollo/neo/packages/canbus-dev/latest/data /apollo/modules/canbus/data",
+        "ln -snf /opt/apollo/neo/packages/canbus-dev/latest/dag /apollo/modules/canbus/dag",
+        "ln -snf /opt/apollo/neo/packages/canbus-dev/latest/launch /apollo/modules/canbus/launch"
+    ],
+    "data": [
+        {
+            "src": "canbus-dev/local",
+            "des": "-"
+        }
+    ]
+}

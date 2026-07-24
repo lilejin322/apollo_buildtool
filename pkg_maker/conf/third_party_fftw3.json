@@ -1,0 +1,20 @@
+{
+    "name": "3rd-fftw3",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "apollo packaged fftw3.",
+    "deps": [],
+    "include_path":"",
+    "data": [
+        {
+            "src": "3rd-fftw3-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/usr/include/fftw3*",
+            "des": "include/"
+        },{
+            "src": "/apollo/output/usr/lib/x86_64-linux-gnu/libfftw3*",
+            "des": "lib/"
+        }
+    ]
+}

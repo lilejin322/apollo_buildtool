@@ -1,0 +1,22 @@
+
+{
+    "name": "3rd-opencv",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged opencv.",
+    "deps": ["libgtk2.0-0", "libwebp-dev"],
+    "include_path":"opencv2",
+    "src_module": "//third_party/opencv",
+    "data": [
+        {
+            "src": "3rd-opencv-dev/local",
+            "des": "-"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/include/opencv4/opencv2",
+            "des": "include"
+        },{
+            "src": "/apollo/output/opt/apollo/sysroot/lib/libopencv_*",
+            "des": "lib/"
+        }
+    ]
+}

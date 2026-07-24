@@ -1,0 +1,22 @@
+{
+    "name": "third-party-perception",
+    "ver": "1.0.0.1",
+    "arch": "amd64",
+    "description": "Apollo packaged third party perception module.",
+    "deps": [],
+    "include_path":"",
+    "extend_ops": [
+        "mkdir -p /apollo/modules/third_party_perception/",
+        "chmod a+rw /apollo/modules/third_party_perception/",
+        "ln -snf /opt/apollo/neo/packages/third-party-perception-dev/latest/conf /apollo/modules/third_party_perception/conf",
+        "ln -snf /opt/apollo/neo/packages/third-party-perception-dev/latest/data /apollo/modules/third_party_perception/data",
+        "ln -snf /opt/apollo/neo/packages/third-party-perception-dev/latest/dag /apollo/modules/third_party_perception/dag",
+        "ln -snf /opt/apollo/neo/packages/third-party-perception-dev/latest/launch /apollo/modules/third_party_perception/launch"
+    ],
+    "data": [
+        {
+            "src": "third-party-perception-dev/local",
+            "des": "-"
+        }
+    ]
+}
