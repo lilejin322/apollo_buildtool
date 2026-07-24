@@ -301,6 +301,8 @@ class Action(core.action.Action):
             if ret_code != 0:
                 return ret_code
 
+            self.set_ld_path()
+
         # clear all replicated '-dev' 
         # before this change name logic of install rule have been removed
         # try:

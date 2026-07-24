@@ -158,7 +158,7 @@ class PackageBuilder(object):
     def generate_env_config(self):
         """add environment variable to .bashrc"""
         #TODO read from config
-        logger.debug("Reconfigure apollo enviroment setup")
+        logger.info("Reconfigure apollo enviroment setup")
 
         target_file = list()
 

@@ -609,7 +609,3 @@ def pure_binary_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
         if not link_target(str(package_lib_path), str(dst_lib_dir_wrapper)):
             exit(-1) 
     return 0
-
-
-
-
