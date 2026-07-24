@@ -53,6 +53,11 @@ W_DIR = os.path.join(APOLLO_OUT, "dpkg")
 
 OUTPUT_DIR="/apollo/output"
 
+# black list
+APOLLO_SHARE = os.path.join(APOLLO_PATH, get_config("base", "config_path_prefix"))
+APOLLO_INCLUDE = os.path.join(APOLLO_PATH, get_config("base", "include_path_prefix"))
+APOLLO_PYTHON = os.path.join(APOLLO_PATH, get_config("base", "python_path_prefix"))
+
 cwd = os.getcwd()
 bin_root = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 
@@ -380,7 +385,7 @@ class DebBuilder(object):
         cyberfile = self.prepare(deb_conf)
         self.do_pack(self.package_name_ver)
         copy_or_link(W_DIR + "/" + self.package_name_ver + 
-        ".deb", cwd + "/.deb_local/" + self.package_name_ver + ".deb")
+            ".deb", cwd + "/.deb_local/" + self.package_name_ver + ".deb")
         # copy cyberfile
         if Path(cyberfile).exists():
             copy_or_link(cyberfile, cwd + "/.deb_local/" + self.package_name_ver + ".cyberfile")
@@ -523,7 +528,7 @@ class DebBuilder(object):
                 for version in root.findall("version"):
                     version.text = deb_conf.ver
                 ret = f
-            cyberfile.write(f, encoding='utf-8')
+                cyberfile.write(f, encoding='utf-8')
         if f is None:
             raise DebMakerError(
                 "Can't find cyberfile on metapath of package {}".format(deb_conf.name))

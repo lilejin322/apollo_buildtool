@@ -16,9 +16,10 @@
 ###############################################################################
 """Preprocess function"""
 
-import subprocess
 import os
+import json
 import shutil
+import subprocess
 import requests
 from pathlib import Path
 from distutils.dir_util import copy_tree
@@ -171,7 +172,7 @@ def _install_apollo_package_in_playgroud(pkg_desc):
             ["Internal error: {} is not exists".format(install_deb_path)]
         )
 
-    if pkg_desc.name.startswith("3rd") or pkg_desc.name == "bazel-extend-tools":
+    if _is_third_party_package(pkg_desc):
         cmd = "{} {} {} 2>&1".format(
             AptContext.executable, " ".join(AptContext.reinstall_args), install_deb_path)
         p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -256,7 +257,7 @@ def _install_apollo_package_in_playgroud(pkg_desc):
     
     copy_tree("{}/".format(os.path.join(
             process_package_path, get_config("base", "apollo_root")[1:])), 
-        "{}/".format(get_config("base", "apollo_root")))
+        "{}/".format(get_config("base", "apollo_root")), preserve_symlinks=1)
 
     cmd = "sudo {}".format(postinst_in_package)
     p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
@@ -273,6 +274,96 @@ def _install_apollo_package_in_playgroud(pkg_desc):
 
     os.remove(install_deb_path)
     shutil.rmtree(process_package_path)
+
+def _is_third_party_package(pkg_desc):
+    if pkg_desc.name.startswith("3rd") or pkg_desc.name == "bazel-extend-tools":
+        return True
+    else:
+        return False
+
+def _request_hash_of_package(pkg_desc):
+    token = get_token()
+    arch = get_arch()
+    codename = get_codename()
+    headers = {"Host": "apollo.baidu.com", 
+            "Authorization": "Bearer {}".format(token)}
+    request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}".format(
+        get_config("api", "attr_query"), pkg_desc.repository, arch, codename, 
+        _get_apollo_package_full_name(pkg_desc), pkg_desc.version,
+    )
+    
+    response = requests.get(
+        url=request_url, headers=headers)
+    if response.status_code != 200:
+        ErrCode.send_error(
+            ErrCode.NetworkIoError, 
+            ["Query attr of packages {} failed, status: {}".format(
+                pkg_desc.name, response.status_code)])
+    return response.json()
+
+def _get_stored_hash_of_package(pkg_desc):
+
+    package_src_path = pkg_desc.real_src.replace("//", "")
+
+    APOLLO_PATH = get_config("base", "apollo_root") 
+    apollo_include = os.path.join(APOLLO_PATH, get_config("base", "include_path_prefix"))
+    apollo_python = os.path.join(APOLLO_PATH, get_config("base", "python_path_prefix"))
+    apollo_share = os.path.join(APOLLO_PATH, get_config("base", "config_path_prefix"))
+    package_meta = os.path.join(APOLLO_PATH,
+        get_config("base", "package_meta_prefix"), pkg_desc.name)
+    
+    package_pack_file = os.path.join(package_meta, "pack.json")
+    try:
+        pack_file_json = None
+        hash_input = None
+        candidates = []
+        with open(package_pack_file, "r", encoding="utf-8") as f:
+            pack_file_json = json.loads(f.read())["data"]
+        for ele in pack_file_json:
+            candidate = os.path.abspath(ele["des"])
+            if ".runfiles" not in candidate and \
+                    not candidate.startswith(apollo_include) and \
+                    not candidate.startswith(apollo_python) and \
+                    not candidate.startswith(apollo_share):
+                candidates.append(candidate)
+        if len(candidates) == 0:
+            hash_input = os.path.join(apollo_share, package_src_path)
+            if not os.path.exists(hash_input):
+                hash_input = package_meta
+                if not os.path.exists(hash_input):
+                    raise Exception("damaged package")
+        else:
+            hash_input = " ".join(candidates)
+        # bring "LC_COLLATE" to prevent unstable result of sort
+        shell_env = os.environ.copy()
+        shell_env["LC_COLLATE"] = "C"
+        hash_val = subprocess.check_output(
+            'find {} -name "*" -type f -print0 | sort -z | xargs -0 cat | sha1sum'.format(hash_input),
+            shell=True, env=shell_env).decode("utf-8")
+    except Exception as ex:
+        print(str(ex))
+        exit(-1)
+        logger.warning("The meta of {} is damaged, force to upgrade".format(pkg_desc.name))
+        return ""
+
+    return hash_val.split(" ")[0]
+
+def _update_meta_of_stored_package(pkg_desc):
+    logger.info("update the version meta of {}".format(pkg_desc.name))
+    APOLLO_PATH = get_config("base", "apollo_root") 
+    package_meta = os.path.join(APOLLO_PATH,
+        get_config("base", "package_meta_prefix"), pkg_desc.name)
+    package_cyebrfile = os.path.join(package_meta, "cyberfile.xml")
+    if not os.path.exists(package_cyebrfile):
+        ErrCode.send_error(
+            ErrCode.PackageAttrErr,
+            ["Package meta missing, please reinstall this package manually"]
+        )
+    cyberfile_et = ET.parse(package_cyebrfile)
+    fr = cyberfile_et.getroot()
+    version = fr.find("version")
+    version.text = pkg_desc.version
+    cyberfile_et.write(package_cyebrfile, encoding='utf-8') 
 
 def _install_package_before_proceed(pkg_desc: PackageDesc):
     procedure = Procedure()
@@ -291,7 +382,14 @@ def _install_package_before_proceed(pkg_desc: PackageDesc):
                 ["Internal error: apt package with abnormal install status"],
             )
         else:
-            logger.info("{} want version {}, try to reinstall it".format(pkg_desc.name, pkg_desc.version))
+            if not _is_third_party_package(pkg_desc):
+                new_pkg_hash_val = _request_hash_of_package(pkg_desc)
+                stored_pkg_hash_val = _get_stored_hash_of_package(pkg_desc)
+                if new_pkg_hash_val == stored_pkg_hash_val and \
+                        new_pkg_hash_val != "" and stored_pkg_hash_val != "":
+                    _update_meta_of_stored_package(pkg_desc)
+                    return
+            logger.info("update {} to version {}...".format(pkg_desc.name, pkg_desc.version))
             _request_apollo_package_in_playgroud(pkg_desc)
             _install_apollo_package_in_playgroud(pkg_desc) 
 
@@ -320,6 +418,7 @@ def _install_package_before_proceed(pkg_desc: PackageDesc):
             ErrCode.send_error(ErrCode.AptErr, ["Aborting process"])
 
     else:
+        # force upgrade package or needed upgrade package
         _request_apollo_package_in_playgroud(pkg_desc)
         _install_apollo_package_in_playgroud(pkg_desc)
 

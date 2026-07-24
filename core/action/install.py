@@ -221,7 +221,9 @@ class Action(core.action.Action):
             return -1
 
         for pkg_desc in targets:
+            self.set_ld_path()
             rc = self.install(pkg_desc, args)
+            self.set_ld_path()
             if rc != 0:
                 return rc
 
