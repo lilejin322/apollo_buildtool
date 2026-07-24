@@ -14,9 +14,26 @@
  * limitations under the License.
  *****************************************************************************/
 #pragma once
+#include <memory>
 
+#include "cyber/class_loader/class_loader.h"
+#include "cyber/component/timer_component.h"
 #include "cyber/component/component.h"
+#include "example_components/proto/examples.pb.h"
 
-void external_func_hello();
+namespace apollo {
+namespace example {
 
-void external_func_bye();
+  class TimerCommonComponentSample : public apollo::cyber::TimerComponent {
+    public:
+        bool Init() override;
+        bool Proc() override;
+    private:
+        std::shared_ptr<apollo::cyber::Writer<example::proto::Driver>> driver_writer_ = nullptr;
+        std::shared_ptr<apollo::cyber::Writer<example::proto::Driver>> second_driver_writer_ = nullptr;
+  };
+  CYBER_REGISTER_COMPONENT(TimerCommonComponentSample)
+
+} //namespace example
+} //namespace apollo
+

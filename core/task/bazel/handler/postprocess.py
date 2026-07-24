@@ -40,9 +40,6 @@ logger = get_logger('buildtool')
 def module_postprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """postprocess function for module"""
     if pkg_desc.import_type == "src":
-        in_src_image = False
-        if Path("/apollo/LICENSE").exists():
-            in_src_image = True
         dev_path = "dev/bazel/"
         src_value = pkg_desc.real_src_to_related_path()
         apollo_packages_path = Path(get_config("base", "apollo_package_path"))
@@ -77,31 +74,6 @@ def module_postprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
             package_repo_path = apollo_packages_path / _package_name_to_dir(pkg_desc.name) / "local"
             package_lib_path = package_repo_path / "lib" 
             package_bin_path = package_repo_path / "bin"
-            # cyberfile = package_repo_path / "cyberfile.xml"
-            # if not cyberfile.exists():
-            #     ErrCode.send_error(
-            #         ErrCode.PackageAttrErr,
-            #         ["can't find cyberfile in {} output dir".format(pkg_desc.name)]
-            #     )
-            # wired post check, for the bug of apollo install rule
-            # content = None
-            # with cyberfile.open("r") as f:
-            #     content = f.read()
-            # while "-dev-dev" in content:
-            #     content = content.replace("-dev-dev", "-dev")
-            # with cyberfile.open("w+") as f:
-            #     f.write(content)
-            # if package_lib_path.exists():
-            #     for root, _, files in os.walk(str(package_lib_path)):
-            #         if root == str(package_lib_path):
-            #             continue
-            #         for f in files:
-            #             if f.endswith(".so") and Path(os.path.join(root, f)).is_file():
-            #                 src = Path(os.path.join(root, f))
-            #                 dst = Path(os.path.join(str(package_lib_path), f))
-            #                 if dst.exists() or dst.is_symlink():
-            #                     dst.unlink()
-            #                 link_target(str(src), str(dst))
 
             # link lib dir
             dst_lib_dir_wrapper = apollo_root_path / "lib" / pkg_desc.name
@@ -143,59 +115,13 @@ def module_postprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
         depend_info_pool.add_replace_content("{}={}".format(pkg_desc.real_src, _dertermine_workspace_dep_name(pkg_desc)))
         # depend_info_pool.add_runtime_lib_path(str(dst_lib_dir_wrapper))
 
-        if _is_deprecated_package(pkg_desc):
-            #TODO(P2): move this logic to package postinstall process: 106 - 141
-            # link module config file in normal position
-            link_dirs = ["dag", "launch", "data", "conf"]
-            normal_dir_count = len(link_dirs)
-            src_dir_wrapper = latest
-            dst_dir_wrapper = Path("/apollo") / pkg_desc.real_src_to_related_path()
-
-            # link config file which is not in normal position
-            addition_data_wrapper = latest / "addition_data"
-            if addition_data_wrapper.exists():
-                link_dirs += os.listdir(str(addition_data_wrapper))
-
-            _create_pre_folders(pkg_desc.src, Path("/apollo"), False)
-            if not dst_dir_wrapper.exists():
-                dst_dir_wrapper.mkdir(exist_ok=True)
-            for index in range(len(link_dirs)):
-                dir = link_dirs[index]
-                if index > normal_dir_count - 1:
-                    src_wrapper = src_dir_wrapper / "addition_data" / dir
-                else:
-                    src_wrapper = src_dir_wrapper / dir 
-                dst_wrapper = dst_dir_wrapper / dir
-                if not in_src_image:
-                    if not src_wrapper.exists():
-                        continue
-                    if dst_wrapper.exists() or dst_wrapper.is_symlink():
-                        if dst_wrapper.is_dir() and not dst_wrapper.is_symlink():
-                            shutil.rmtree(str(dst_wrapper))
-                        else:
-                            dst_wrapper.unlink()
-                    os.symlink(str(src_wrapper), str(dst_wrapper))
-            if in_src_image:
-                logger.warn("You are using apollo source image")
-                logger.warn(
-                    "Therefore, the configuration file under the apollo source code will be used"
-                )
-                logger.warn("And the package configuration file will be ignored")
-
-            # grant permission
-            subprocess.run(
-                "sudo chmod -R 777 {}".format(
-                    str(apollo_packages_path / pkg_output_dir)
-                ), 
-                shell=True
-            )
-        else:
+        if not _is_deprecated_package(pkg_desc):
             package_meta = os.path.join(
                 get_config("base", "apollo_root"),
                 get_config("base", "package_meta_prefix"),
                 pkg_desc.name, "meta.txt" 
             )
-            with open(package_meta, "r") as f:
+            with open(package_meta, "r", encoding="utf-8") as f:
                 package_src = (f.read().split("\n")[-1]).split(":")[-1]
 
             conf_path = os.path.join(
@@ -215,12 +141,6 @@ def module_postprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
                         os.path.relpath(src, prefix)
                     )
                     if os.path.exists(dst):
-                        # dst_dir_list = dst.split("/")
-                        # dst_dir_list = dst_dir_list[: len(dst_dir_list)-1]
-                        # dst_dir = "/".join(dst_dir_list)
-                        # subprocess.run(
-                        #     "sudo chmod 777 {} && sudo chmod 777 {}".format(dst, dst_dir), 
-                        #     shell=True)
                         pass
                     else:
                         dst_dir_list = dst.split("/")
@@ -233,16 +153,6 @@ def module_postprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
                                 ErrCode.PackageAttrErr,
                                 "Link config file error: {} -> {}".format(src, dst)
                             )
-
-        # # python support
-        # python_support_wrapper = latest / "python"
-        # if python_support_wrapper.exists():
-        #     subprocess.run(
-        #         "sudo rsync -avr --whole-file --progress {}/ {}/".format(
-        #             str(python_support_wrapper), str(apollo_root_path / "python")
-        #         ), 
-        #         shell=True
-        #     )
 
     else:
         _null_func(pkg_desc)

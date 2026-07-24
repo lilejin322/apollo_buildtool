@@ -41,7 +41,7 @@ if os.path.isfile(os.path.join(cwd, '.buildtool.conf')):
 
 def get_setup():
     """get setup"""
-    with open(os.path.join(root, 'setup.sh'), 'r') as f:
+    with open(os.path.join(root, 'setup.sh'), 'r', encoding="utf-8") as f:
         content = f.read()
     return content
 
@@ -59,7 +59,7 @@ def get_template(template_name):
     content = None
     if not template_wrapper.exists():
         return content
-    with template_wrapper.open('r') as f:
+    with template_wrapper.open('r', encoding="utf-8") as f:
         content = f.read()
     return content
 
@@ -86,7 +86,7 @@ def get_str_md5(value):
 def read_json_file(file_path):
     """read_json_file"""
     try:
-        with open(file_path) as f:
+        with open(file_path, encoding="utf-8") as f:
             return json.load(f)
     except Exception as ex:
         return
@@ -97,7 +97,7 @@ def write_json_file(file_path, data):
     try:
         if not os.path.exists(os.path.dirname(file_path)):
             os.makedirs(os.path.dirname(file_path))
-        with open(file_path, 'w') as wf:
+        with open(file_path, 'w', encoding="utf-8") as wf:
             return json.dump(data, wf)
     except Exception as ex:
         return
@@ -149,6 +149,6 @@ def generate_template(template_path, output_path, **kwargs):
     template = env.get_template(template_path)
     if not os.path.exists(os.path.dirname(output_path)):
         os.makedirs(os.path.dirname(output_path))
-    with open(output_path, 'w+') as fn:
+    with open(output_path, 'w+', encoding="utf-8") as fn:
         content = template.render(kwargs)
         fn.write(content)

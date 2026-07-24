@@ -9,11 +9,8 @@
   <src_path>//example_lib</src_path>
   <license>BSD</license>
   <author>Apollo</author>
-  <depend type="binary" repo_name="cyber">cyber-dev</depend>
-  <depend>bazel-extend-tools-dev</depend>
-  <depend lib_names="gtest,gtest_main" repo_name="com_google_googletest">3rd-gtest-dev</depend>
+  <depend type="binary" repo_name="cyber">cyber</depend>
+  <depend lib_names="gtest,gtest_main" repo_name="com_google_googletest">3rd-gtest</depend>
 
-  <depend expose="False" condition="gpu">3rd-gpus-dev</depend>
-
-  <builder>bazel</builder>
+  <depend expose="False" condition="gpu">3rd-gpus</depend>
 </package>

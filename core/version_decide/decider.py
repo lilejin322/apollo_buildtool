@@ -138,11 +138,18 @@ class PackageSource(BasePackageSource):
 
 class DeciderInterface(object):
     """decider output interface"""
-    def __init__(self):
+    def __init__(self, repositories):
+        self.NON_VERSION = "None"
+
         self.source = None
         self.cyberfile_source = None
         self.result = None
+        self.root_deps_info = []
+        self.normal_deps_info = []
+        self.package_version_info = {}
+        self.repositories = repositories
         self.metadata_cli = MetaDataCli()
+        self.metadata_cli.run(repositories)
         self._init_package_source()
 
     def _init_package_source(self):
@@ -151,21 +158,105 @@ class DeciderInterface(object):
         if not self.cyberfile_source:
             self.cyberfile_source = dict()
 
-    def collect_root_depend(self, name, version):
+    def collect_root_depend(self, name, entry_version):
         """add root depend"""
         if not self.source:
             return False
-        if version == "":
-            version = self.metadata_cli.get_available_version_format(name) 
-        self.source.root_dep(name, version)
+        version = self.NON_VERSION
+
+        if entry_version != "":
+            version = entry_version
+
+        if name not in self.package_version_info:
+            self.package_version_info[name] = set()
+            self.package_version_info[name].add(version)
+        else:
+            self.package_version_info[name].add(version)
+
+        self.root_deps_info.append((name, version))
+
+        # self.source.root_dep(name, version)
         return True
 
     def register_package(self, name: str, version: str, deps: dict):
         """register available package"""
         if not self.source:
             return False
-        self.source.add(name, version, deps)
+        for dep_name in deps:
+            if dep_name not in self.package_version_info:
+                self.package_version_info[dep_name] = set()
+                self.package_version_info[dep_name].add(deps[dep_name])
+            else:
+                self.package_version_info[dep_name].add(deps[dep_name]) 
+        self.normal_deps_info.append((name, version, deps))
+        # self.source.add(name, version, deps)
         return True
+
+    def _reset_package_version(self):
+        # reset all deps version to avoid conflict
+        # between workspace version and default version
+        # causing version determind failed
+        for i in range(len(self.root_deps_info)):
+            name = self.root_deps_info[i][0]
+            version = self.root_deps_info[i][1]
+            if version != self.NON_VERSION:
+                self.source.root_dep(name, version) 
+                continue
+            if len(self.package_version_info[name]) == 1:
+                # always equal with None, all version set to repository version
+                version = self.NON_VERSION
+                # only apollo 'module' package using repository version
+                # TODO: change all package to 'module'
+                if name.startswith("3rd") or name == "bazel-extend-tools":
+                    version = self.metadata_cli.get_available_version_format(name)
+                else:
+                    ns = self.metadata_cli.get_repository(name)
+                    for repo in self.repositories:
+                        if repo.name == ns:
+                            version = "={}".format(repo.version)
+                            break
+                    if version == self.NON_VERSION:
+                        ErrCode.send_error(ErrCode.FileIoErr,
+                            ["Internal error: missing version of root deps: {}".format(name)]
+                        )
+            else:
+                # version specify, disable repository version
+                version = self.metadata_cli.get_available_version_format(name)
+            self.source.root_dep(name, version) 
+
+        for i in self.normal_deps_info:
+            register_pkg_name = i[0]
+            register_pkg_version = i[1]
+            register_pkg_deps = i[2]
+            for register_pkg_dep_name in register_pkg_deps:
+                register_pkg_dep_version = register_pkg_deps[register_pkg_dep_name]
+                if register_pkg_dep_version != self.NON_VERSION:
+                    continue
+                if len(self.package_version_info[register_pkg_dep_name]) == 1:
+                    # always equal with None, all version set to repository version
+                    register_pkg_dep_version = self.NON_VERSION
+                    # only apollo 'module' package using repository version 
+                    if register_pkg_dep_name.startswith("3rd") or register_pkg_dep_name == "bazel-extend-tools":
+                        register_pkg_dep_version = \
+                            self.metadata_cli.get_available_version_format(register_pkg_dep_name)
+                        register_pkg_deps[register_pkg_dep_name] = register_pkg_dep_version
+                    else:
+                        ns = self.metadata_cli.get_repository(register_pkg_dep_name)
+                        for repo in self.repositories:
+                            if repo.name == ns:
+                                register_pkg_dep_version = "={}".format(repo.version)
+                                break
+                        if register_pkg_dep_version == self.NON_VERSION:
+                            ErrCode.send_error(
+                                ErrCode.FileIoErr,
+                                ["Internal error: missing version of root deps: {}".format(register_pkg_dep_name)]
+                            )
+                        register_pkg_deps[register_pkg_dep_name] = register_pkg_dep_version 
+                else:
+                    # version specify, disable repository version
+                    register_pkg_deps[register_pkg_dep_name] = \
+                        self.metadata_cli.get_available_version_format(register_pkg_dep_name) 
+            self.source.add(register_pkg_name, register_pkg_version, register_pkg_deps)
 
     def _get_result(self):
         solver = VersionSolver(self.source)
@@ -194,7 +285,7 @@ class DeciderInterface(object):
         )
         if os.path.isfile(result_path):
             try:
-                with open(result_path, "r") as f:
+                with open(result_path, "r", encoding="utf-8") as f:
                     cached_results = json.loads(f.read())
             except:
                 return None
@@ -247,7 +338,7 @@ class DeciderInterface(object):
             os.makedirs(get_config("decider", "targets"), exist_ok=True)
             targets_index = self._get_targets_index(targets)
             with open(
-                os.path.join(get_config("decider", "results"), targets_index), "w+"
+                os.path.join(get_config("decider", "results"), targets_index), "w+", encoding="utf-8"
             ) as f:
                 f.write(json.dumps(
                     {k._pip_string: self.result[k] for _, k in enumerate(self.result)}
@@ -272,24 +363,27 @@ class DeciderInterface(object):
         self.target_names = dict()
         for i in targets:
             self.target_names[i.name] = i
-        if not self.metadata_cli.get_recached_flags():
-            index = self._get_targets_index(targets)
-            cached_results = self.get_cached_result(index)
-            cyberfile_source = self.get_cyberfile_source(index)
-            possible_targets = self._get_wrapped_target(index)
-            if cached_results is not None and \
-                cyberfile_source is not None and \
-                possible_targets is not None:
-                    self.result = cached_results 
-                    self.cyberfile_source = cyberfile_source
-                    targets = possible_targets
-                    has_results = True
+            
+        # force to discard cache
+
+        # if not self.metadata_cli.get_recached_flags():
+        #     index = self._get_targets_index(targets)
+        #     cached_results = self.get_cached_result(index)
+        #     cyberfile_source = self.get_cyberfile_source(index)
+        #     possible_targets = self._get_wrapped_target(index)
+        #     if cached_results is not None and \
+        #         cyberfile_source is not None and \
+        #         possible_targets is not None:
+        #             self.result = cached_results 
+        #             self.cyberfile_source = cyberfile_source
+        #             targets = possible_targets
+        #             has_results = True
         
         if not has_results:
             for target in targets:
                 for dep in target.deps:
-                    # ignore system depend
-                    cyberfile_contents = self.metadata_cli.acquire_cyberfile(dep.name)
+                    # ignore system depend and user prebuilt depend
+                    _, cyberfile_contents = self.metadata_cli.acquire_cyberfile(dep.name)
                     if cyberfile_contents is None:
                         continue
                     # ignore workspace depend
@@ -298,6 +392,8 @@ class DeciderInterface(object):
                         continue
                     self.collect_root_depend(dep.name, dep.version_format)
                 self._stored_package_info_recu(target, targets)
+
+            self._reset_package_version()
 
             self.result = self._get_result()
             # cache results and targets
@@ -334,7 +430,7 @@ class DeciderInterface(object):
                 continue
 
             self.cyberfile_source[dep.name] = dict()
-            cyberfile_contents = self.metadata_cli.acquire_cyberfile(dep.name)
+            ns, cyberfile_contents = self.metadata_cli.acquire_cyberfile(dep.name)
             # ignore system depend
             if cyberfile_contents is None:
                 continue
@@ -347,6 +443,7 @@ class DeciderInterface(object):
                         ["{} with invalid status".format(desc.name)]
                     )
 
+                desc.repository = ns
                 self.cyberfile_source[dep.name][desc.version] = desc
                 desc_deps_dict = dict()
                 for desc_dep in desc.deps:
@@ -354,12 +451,13 @@ class DeciderInterface(object):
                     if self._check_package_is_in_targets(targets, desc_dep.name):
                         self._setting_local_target(self.target_names[desc_dep.name], desc_dep)
                         continue
+                    _, cyberfile = self.metadata_cli.acquire_cyberfile(desc_dep.name)
+                    if cyberfile is None:
+                        # ignore system depend
+                        continue
                     version_format = desc_dep.version_format
                     if version_format == "":
-                        version_format = self.metadata_cli.get_available_version_format(desc_dep.name)
-                        # ignore system depend
-                        if version_format is None:
-                            continue
+                        version_format = self.NON_VERSION
                     desc_deps_dict[desc_dep.name] = version_format
                 self.register_package(desc.name, desc.version, desc_deps_dict)
 

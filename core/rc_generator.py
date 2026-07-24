@@ -103,7 +103,7 @@ def docker_stage():
     if not os.path.exists(stage_conf) or not os.path.isfile(stage_conf):
         return default_apollo_stage
 
-    with open("/etc/apollo.conf") as f:
+    with open("/etc/apollo.conf", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line.startswith("stage="):
@@ -140,7 +140,7 @@ def write_to_bazelrc(line):
     """
     write new content to bazelrc
     """
-    with open(_APOLLO_BAZELRC, 'a') as f:
+    with open(_APOLLO_BAZELRC, 'a', encoding="utf-8") as f:
         f.write(line + '\n')
 
 
@@ -148,7 +148,7 @@ def write_blank_line_to_bazelrc():
     """
     write line to bazelrc
     """
-    with open(_APOLLO_BAZELRC, 'a') as f:
+    with open(_APOLLO_BAZELRC, 'a', encoding="utf-8") as f:
         f.write('\n')
 
 
@@ -236,9 +236,6 @@ def setup_common_dirs(environ_cp):
         dist_dir = environ_cp['APOLLO_BAZEL_DIST_DIR']
 
     write_to_bazelrc('startup --output_user_root="{}/bazel"'.format(cache_dir))
-    write_to_bazelrc('common --distdir="{}"'.format(dist_dir))
-    write_to_bazelrc('common --repository_cache="{}/repos"'.format(cache_dir))
-    write_to_bazelrc('build --disk_cache="{}/build"'.format(cache_dir))
     write_to_bazelrc('')
 
 
@@ -357,7 +354,7 @@ def reset_apollo_bazelrc():
         Path(_APOLLO_BAZELRC).unlink()
     if os.path.isfile(_APOLLO_BAZELRC):
         return _EXIT_SUCCESS
-    open(_APOLLO_BAZELRC, 'w').close()
+    open(_APOLLO_BAZELRC, 'w', encoding="utf-8").close()
     return _CONTINUE
 
 
@@ -989,7 +986,7 @@ build:cuda --define=using_cuda_nvcc=true
 
 build:tensorrt --action_env TF_NEED_TENSORRT=1
 """
-    with open(_APOLLO_BAZELRC, 'a') as f:
+    with open(_APOLLO_BAZELRC, 'a', encoding="utf-8") as f:
         f.write(build_text)
 
     write_build_var_to_bazelrc('teleop', 'WITH_TELEOP')

@@ -26,7 +26,7 @@ import xml.etree.ElementTree as ET
 from functools import cmp_to_key
 from pkg_resources import parse_version
 from pathlib import Path
-from core import ErrCode
+from core import ErrCode, get_token, get_arch, get_codename
 from core.version_decide.semver import Version
 from core.common import get_config, get_logger
 from core.action import apollo_prefix
@@ -38,7 +38,14 @@ logger = get_logger('buildtool')
 @singleton
 class MetaDataCli(object):
     def __init__(self):
-        self.metadata_request_url = get_config("url", "metadata")
+        self.headers = {
+            "Host": "apollo.baidu.com",
+            'Authorization': 'Bearer {}'.format(get_token())
+        }
+        self.recache = False
+        self.offline_packages_filename = get_config("cache", "offline_packages_filename")
+        self.offline_cyberfile_cache_filename = get_config("cache", "offline_cyberfile_cache_filename")
+        self.running = False
         self.raw_metadata_pool = dict()
         self.raw_version_pool = dict()
         self.raw_cyberfile_path_pool = dict()
@@ -46,126 +53,141 @@ class MetaDataCli(object):
         self.cyberfile_source = dict()
         self.procedure = Procedure()
         self.online = self.procedure.get_network_status()
-        self.need_cached = False
-        self._init_metadata()
+
+    def get_recached_flags(self):
+        """confirm it's recached or not"""
+        return self.recache
+
+    def run(self, repositories):
+        """run the singleton"""
+        if not self.running:
+            self.running = True
+            self.repositories = repositories
+            self._init_metadata()
 
     def _init_metadata(self):
-        raw_metadatas_file = get_config("url", "offline_metadata")
-        cyberfile_cahce = get_config("url", "cyberfile_cache")
         raw_metadatas = None
 
         if self.online:
-            raw_metadatas_resp = requests.get(self.metadata_request_url)
-            if raw_metadatas_resp.status_code != 200:
+            arch = get_arch()
+            codename = get_codename()
+
+            request_url_base = get_config("api", "meta_api")
+            metadata_request_url = "{}?repo_name={}&arch={}&codename={}".format(
+                request_url_base, ",".join([i.name for i in self.repositories]), 
+                arch, codename
+            )
+            meta_resp = requests.get(
+                url=metadata_request_url, headers=self.headers)
+            if meta_resp.status_code != 200:
                 ErrCode.send_error(ErrCode.NetworkIoError, [
                         "Request packages metadata failed! Status code={}".format(
-                            raw_metadatas_resp.status_code)])
+                            meta_resp.status_code)])
+            meta_resp_json = meta_resp.json()
+            # assume return {
+            #     "core": {"packages": packages_content, "cyberfiles": cyberfile_content},
+            #     "universe": {"packages": packages_content, "cyberfiles": cyberfile_content}
+            # }
+            for repo in meta_resp_json:
+                prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), repo)
+                os.makedirs(prefix, exist_ok=True)
+                packages_path = os.path.join(prefix, self.offline_packages_filename)
+                cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
+                if "packages" not in meta_resp_json[repo] or \
+                        "cyberfiles" not in meta_resp_json[repo]:
+                    ErrCode.send_error(ErrCode.NetworkIoError, 
+                        ["Unauthorized access repository {}".format(repo)],
+                        ["Please use login command to access this repository"])
 
-            raw_metadatas = raw_metadatas_resp.text
+                if not self.recache:
+                    if not os.path.exists(packages_path) or not os.path.exists(packages_path):
+                        self.recache = True
+                    else:
+                        with open(packages_path, "r") as f:
+                            cached_packages = f.read()
+                        with open(cyberfiles_path, "r") as f:
+                            cached_cyberfiles = f.read()
+                        if cached_packages != meta_resp_json[repo]["packages"] or \
+                            cached_cyberfiles != meta_resp_json[repo]["cyberfiles"]:
+                            self.recache = True
 
-            if not os.path.exists(raw_metadatas_file) or not os.path.exists(cyberfile_cahce):
-                self.need_cached = True
-            else:
-                local_cached_md5 = None
-                with open(raw_metadatas_file, "r") as f:
-                    local_cached_md5 = hashlib.md5(f.read().encode('utf-8')).hexdigest()
+                with open(packages_path, "w+") as f:
+                    f.write(meta_resp_json[repo]["packages"])
 
-                raw_metadatas_md5 = hashlib.md5(raw_metadatas.encode('utf-8')).hexdigest()
-                if raw_metadatas_md5 != local_cached_md5:
-                    self.need_cached = True
-
+                with open(cyberfiles_path, "w+") as f:
+                    f.write(meta_resp_json[repo]["cyberfiles"])
         else:
-            if not os.path.exists(raw_metadatas_file) or not os.path.exists(cyberfile_cahce):
-                ErrCode.send_error(ErrCode.FileIoErr,
-                        ["can not find metadata file"])
+            for repo in self.repositories:
+                prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), repo.name)
+                packages_path = os.path.join(prefix, self.offline_packages_filename)
+                cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename) 
 
-            with open(raw_metadatas_file, "r") as f:
+                if not os.path.exists(packages_path) or not os.path.exists(cyberfiles_path):
+                    ErrCode.send_error(ErrCode.FileIoErr,
+                            ["please use offline mode after initialize metadata"])
+
+        for repo in self.repositories:
+            self.raw_metadata_pool[repo.name] = dict()
+            self.raw_version_pool[repo.name] = dict()
+            self.raw_cyberfile_path_pool[repo.name] = dict()
+            self.raw_cyberfile_pool[repo.name] = dict()
+            self.cyberfile_source[repo.name] = dict()
+
+            prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), repo.name)
+            packages_path = os.path.join(prefix, self.offline_packages_filename)
+            cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename) 
+            with open(packages_path, "r") as f:
                 raw_metadatas = f.read()
 
-        raw_metadata_list = raw_metadatas.split("\n\n")
+            raw_metadata_list = raw_metadatas.split("\n\n")
 
-        # parse metadata
-        for i in raw_metadata_list:
-            if i == "":
-                continue
-            terms = i.split("\n")
-            terms_dict = dict()
-            for term in terms:
-                k, v = term.split(":")[0], term.split(":")[1]
-                terms_dict[k] = v
+            # parse metadata
+            for i in raw_metadata_list:
+                if i == "":
+                    continue
+                terms = i.split("\n")
+                terms_dict = dict()
+                for term in terms:
+                    k, v = term.split(":")[0], term.split(":")[1]
+                    terms_dict[k] = v
 
-            if terms_dict["Package"].strip() in self.raw_metadata_pool:
-                self.raw_metadata_pool[terms_dict["Package"].strip()].append(terms_dict)
-            else:
-                self.raw_metadata_pool[terms_dict["Package"].strip()] = [terms_dict]
+                if terms_dict["Package"].strip() in self.raw_metadata_pool[repo.name]:
+                    self.raw_metadata_pool[repo.name][
+                        terms_dict["Package"].strip()].append(terms_dict)
+                else:
+                    self.raw_metadata_pool[repo.name][
+                        terms_dict["Package"].strip()] = [terms_dict]
 
-        if self.online:
-            for _, name in enumerate(self.raw_metadata_pool):
+            for _, name in enumerate(self.raw_metadata_pool[repo.name]):
                 # parse cyberfile path
-                self.raw_cyberfile_path_pool[name] = [
-                    "{}/{}".format(
-                        get_config("url", "head"), (".".join(
-                            (i["Filename"].split("."))[: len(i["Filename"].split("."))-1] \
-                                + ["cyberfile"]).strip()
-                        )
-                    ) for i in self.raw_metadata_pool[name]
+                self.raw_cyberfile_path_pool[repo.name][name] = [
+                    name for i in self.raw_metadata_pool[repo.name][name]
                 ]
 
                 # parse version
-                versions = [parse_version(i["Version"].strip()) for i in self.raw_metadata_pool[name]]
+                versions = [parse_version(i["Version"].strip()) for i in self.raw_metadata_pool[repo.name][name]]
                 version_dict = {}
                 for i in range(len(versions)):
-                    version_dict[versions[i]] = self.raw_metadata_pool[name][i]["Version"].strip()
+                    version_dict[versions[i]] = self.raw_metadata_pool[repo.name][name][i]["Version"].strip()
                 versions.sort()
 
-                self.raw_version_pool[name] = [
-                    Version.parse(version_dict[i]) for i in versions
-                ]
-        else:
-            for _, name in enumerate(self.raw_metadata_pool):
-                # parse cyberfile path
-                self.raw_cyberfile_path_pool[name] = [
-                    "{}".format(((".".join(
-                            (i["Filename"].split("."))[: len(i["Filename"].split("."))-1] \
-                                + ["cyberfile"]).strip()).split("/"))[-1]
-                    ) for i in self.raw_metadata_pool[name]
-                ]
-
-                # parse version
-                versions = [parse_version(i["Version"].strip()) for i in self.raw_metadata_pool[name]]
-                version_dict = {}
-                for i in range(len(versions)):
-                    version_dict[versions[i]] = self.raw_metadata_pool[name][i]["Version"].strip()
-                versions.sort()
-
-                self.raw_version_pool[name] = [
+                self.raw_version_pool[repo.name][name] = [
                     Version.parse(version_dict[i]) for i in versions
                 ]
 
-        if self.need_cached:
-            cyberfile_cahce_dir = "/".join(
-                cyberfile_cahce.split("/")[0: len(cyberfile_cahce.split("/"))-1])
-            if not os.path.exists(cyberfile_cahce_dir):
-                os.makedirs(cyberfile_cahce_dir)
-            self._cached_all_cyberfile(cyberfile_cahce)
+            self._cached_all_cyberfile(repo.name)
 
-            with open(raw_metadatas_file, "w+") as f:
-                f.write(raw_metadatas)
-        else:
-            with open(cyberfile_cahce, "r", encoding="utf-8") as f:
-                self.cyberfile_source = json.loads(f.read())
-
-    def _cached_all_cyberfile(self, cache_path):
+    def _cached_all_cyberfile(self, ns):
         logger.info("update the local cache")
-        cyberfiles_meta_url = get_config("url", "cyberfiles_meta")
-        cyberfiles_resp = requests.get(cyberfiles_meta_url) 
-        if cyberfiles_resp.status_code != 200:
+        prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), ns)
+        cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename) 
+        if not os.path.exists(cyberfiles_path):
             ErrCode.send_error(
-                ErrCode.NetworkIoError,
-                ["fetch metadata of cyberfiles failed"],
-                ["may due to the network condition, please try again"],
-                exit=True)
-        root = ET.fromstring(cyberfiles_resp.text)
+                ErrCode.FileIoErr,
+                ["Internal error: can not find the cached cyberfile metadata"],
+            )
+        
+        root = ET.parse(cyberfiles_path)
         elems = root.iterfind("package")
         for elem in elems:
             name = None
@@ -176,61 +198,74 @@ class MetaDataCli(object):
                     ErrCode.NetworkIoError,
                     ["metadata of cyberfiles invalid"],
                     exit=True)
-            if name not in self.raw_cyberfile_pool:
-                self.raw_cyberfile_pool[name] = list()
-            self.raw_cyberfile_pool[name].append(
+            if name not in self.raw_cyberfile_pool[ns]:
+                self.raw_cyberfile_pool[ns][name] = list()
+            self.raw_cyberfile_pool[ns][name].append(
                 ET.tostring(elem, encoding='utf-8').decode("utf-8"))
-        for name in self.raw_cyberfile_pool:
-            self.cyberfile_source[name] = "<root>\n" + "\n".join(
-                            self.raw_cyberfile_pool[name]) + "\n</root>"
+        for name in self.raw_cyberfile_pool[ns]:
+            self.cyberfile_source[ns][name] = "<root>\n" + "\n".join(
+                            self.raw_cyberfile_pool[ns][name]) + "\n</root>"
         
-        with open(cache_path, "w+", encoding="utf-8") as f:
-            f.write(json.dumps(self.cyberfile_source))
         logger.info("update complete")
 
     def get_all_package_name(self):
-        return [name.replace(apollo_prefix, "") for name in self.raw_cyberfile_path_pool]
+        pkg_names = []
+        for i in self.repositories:
+            pkg_names += [name.replace(apollo_prefix, "") for name in self.raw_cyberfile_path_pool[i.name]]
+        return list(set(pkg_names))
 
     def acquire_cyberfile(self, name: str):
         # format name to repo package name
         name = self.change_package_name(name)
-        if name not in self.raw_cyberfile_path_pool:
+        ns_location = None
+        for ns in self.repositories:  
+            if name in self.raw_cyberfile_path_pool[ns.name]:
+                ns_location = ns.name
+                break
+        
+        if ns_location is None:
             # system package or not found
-            return None
+            return None, None
 
-        if name not in self.cyberfile_source:
-            cyberfile_cache = get_config("url", "cyberfile_cache")
+        if name not in self.cyberfile_source[ns_location]:
+            prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), ns_location)
+            cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
+
             if os.path.exists(cyberfile_cache):
                 os.remove(cyberfile_cache)
-            ErrCode.send_error(
-                    ErrCode.NetworkIoError,
-                    ["Internal error: missing cyberfile of {}".format(name)],
-                    exit=False)
 
-        return self.cyberfile_source[name]
+            ErrCode.send_error(ErrCode.FileIoError,
+                ["Internal error: missing cyberfile of {} in repository".format(name, ns_location)])
+
+        return ns_location, self.cyberfile_source[ns_location][name]
+
+    def get_repository(self, name: str):
+        """get package repository"""
+        prefix_name = self.change_package_name(name)
+        ns, cyber_content = self.acquire_cyberfile(name)
+        if cyber_content is None:
+            return None
+        return ns
 
     def get_available_version_format(self, name: str):
         prefix_name = self.change_package_name(name)
-        cyber_content = self.acquire_cyberfile(name)
+        ns, cyber_content = self.acquire_cyberfile(name)
         if cyber_content is None:
             return None
 
-        version_range = self.raw_version_pool[prefix_name]
+        version_range = self.raw_version_pool[ns][prefix_name]
         if len(version_range) > 1:
             return ">={} <={}".format(version_range[0], version_range[-1])
         else:
             return "={}".format(version_range[-1])
 
-    def get_recached_flags(self):
-        return self.need_cached
-
     def get_latest_version(self, name: str):
         prefix_name = self.change_package_name(name)
-        cyber_content = self.acquire_cyberfile(name)
+        ns, cyber_content = self.acquire_cyberfile(name)
         if cyber_content is None:
             return None
 
-        version_range = self.raw_version_pool[prefix_name]
+        version_range = self.raw_version_pool[ns][prefix_name]
         return version_range[-1]
 
     def change_package_name(self, name):

@@ -43,7 +43,8 @@ class Action(core.action.Action):
     """list action class"""
     def __init__(self):
         super().__init__()
-        self.decider = DeciderInterface()
+        self.parse_workspace_conf()
+        self.decider = DeciderInterface(self.repositories)
         self.cyberfile_gpu = False
         self.cyberfile_dbg = False
         self.cyberfile_dev = True
@@ -85,13 +86,13 @@ class Action(core.action.Action):
                 descs = self.identifier.identify_all(cyberfile_content)
                 all_remote_desc += descs
             for pkg_desc in all_remote_desc:
-                if self.query["name"] in [i.name for i in pkg_desc.deps]:
+                if self.query["name"] in [i.name for i in pkg_desc.deps] and pkg_desc not in proceed_desc:
                     proceed_desc.append(pkg_desc)
             
             self.format_remote_information(proceed_desc, self.query["name"])
             return 0
         else:
-            package_cyberfiles = str(
+            _, package_cyberfiles = str(
                 self.decider.metadata_cli.acquire_cyberfile(self.query["name"])
             )
             if package_cyberfiles == "None":
@@ -147,16 +148,16 @@ class Action(core.action.Action):
             logger.info("There are no packages directly depend on {}".format(query_desc_name))
             return
         logger.info("These following packages directly depend on {}:".format(query_desc_name))
-        temp = list()
-        for index, desc in enumerate(proceed_desc):
-            temp.append(desc)
-            if (index + 1) % 4 == 0:
-                package_format = ["({})".format(i.name) for i in temp]
-                logger.info("  {}".format(", ".join(package_format)))
-                temp = list()
-        package_format = [i.name for i in temp]
-        if len(package_format) > 1:
-            logger.info("  {}".format(", ".join(package_format))) 
+        result = {}
+        for desc in proceed_desc:
+            name = desc.name
+            version = desc.version
+            if name in result.keys():
+                result[name].append(version)
+            else:
+                result[name] = [version]
+        for k, v in result.items():
+            logger.info(f" {k}, version: {', '.join(v)}")
 
     def format_information(self, pkg_desc, g):
         """format local packages' depends"""

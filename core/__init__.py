@@ -17,20 +17,77 @@
 """
 apt information class
 """
+import os
 import enum
 import shutil
 import getpass
 import sys
+import subprocess
 from core.logging import get_logger
+from core.common import get_config
 
 logger = get_logger('buildtool')
+
+arch = None
+codename = None
+
+def get_codename():
+    """get ubuntu code name"""
+    global codename
+    if codename is None:
+        codename = subprocess.check_output(
+            ["lsb_release", "-c"]).decode("utf-8").split(":")[1].strip()
+    return codename
+
+def get_arch():
+    """get platform arch"""
+    global arch
+    if arch is None:
+        arch = subprocess.check_output(["uname", "-m"]).decode("utf-8").strip()
+        if arch == "x86_64":
+            arch = "amd64"
+        elif arch == "aarch64":
+            arch = "arm64"
+        else:
+            ErrCode.send_error(
+                ErrCode.ArchErr,
+                ["Only support arch of x86_64 and arm64"],
+            )
+    return arch
+
+def reset_token():
+    """reset the token"""
+    id_path = os.path.join(get_config("base", "apollo_root"),
+        get_config("base", "config_path_prefix"), "buildtool", "id_token") 
+    if os.path.exists(id_path):
+        os.remove(id_path)
+
+def get_token():
+    """get cached token"""
+    token = ""
+    id_path = os.path.join(get_config("base", "apollo_root"),
+        get_config("base", "config_path_prefix"), "buildtool", "id_token") 
+    if os.path.exists(id_path):
+        with open(id_path, "r") as f:
+            token = f.read()
+    return token.strip()
+
+def save_token(token):
+    """save token"""
+    id_dir = os.path.join(get_config("base", "apollo_root"),
+        get_config("base", "config_path_prefix"), "buildtool")
+    if not os.path.exists(id_dir):
+        os.makedirs(id_dir, exist_ok=True)
+    id_path = os.path.join(id_dir, "id_token")
+    with open(id_path, "w+") as f:
+        f.write(token)
 
 class AptContext(object):
     """apt context"""
     executable = shutil.which('apt') if getpass.getuser() == "root" else "sudo " + shutil.which('apt') 
     install_args = ["install", "-y", "--allow-unauthenticated"]
-    reinstall_args = ["install", "--reinstall", "-y", "--allow-unauthenticated"]
-    uninstall_args = ['remove', '-y', ">/dev/null 2>&1"]
+    reinstall_args = ["install", "--reinstall", "-y", "--allow-unauthenticated", "--allow-downgrades"]
+    uninstall_args = ['remove', '-y']
 
 
 class AptStatus(enum.Enum):
@@ -78,4 +135,9 @@ class ErrCode(enum.Enum):
             else:
                 logger.error("solution: {}".format(solutions))
         if exit:
+            # remove all existing cache
+            ld_cache_path = os.path.join(
+                get_config("base", "apollo_root"),
+                get_config("cache", "ld_cache"))
+            os.system("rm -f {}".format(ld_cache_path))
             sys.exit(error_code.value)

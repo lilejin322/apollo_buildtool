@@ -21,14 +21,17 @@ apollo_prefix = "apollo-neo-"
 apollo_3rd_prefix = "apollo-neo-3rd-"
 
 import subprocess
+import platform
 from pathlib import Path
 import os
 import shutil
 import xml.etree.ElementTree as ET
+import json
 from core import ErrCode
 
 from core import AptContext
 from core.common import get_config, get_logger
+from core.version_decide.cyberfile import MetaDataCli
 from core.package_descriptor import PackageDesc, Status
 from core.package_identification.identifier import PackageIdentification
 from core.rc_generator import main as generate_apollo_rc_file
@@ -56,6 +59,12 @@ class Context(object):
         self.args = args
         self.workspace = workspace
 
+class Repository(object):
+    """demonstrate the information of repository"""
+    def __init__(self, name, version):
+        self.name = name
+        self.version = version
+
 
 class Action(object):
     """base action class"""
@@ -63,6 +72,7 @@ class Action(object):
     def __init__(self, **kwargs):
         self.targets_path = list()
         self.identifier = PackageIdentification()
+        self.repositories = list()
 
     def execute(self, context, **kwargs):
         """
@@ -227,6 +237,44 @@ class Action(object):
             new_targets.append(new_target)
         return new_targets, path_to_desc
 
+    def parse_workspace_conf(self):
+        """parse the config file of workspace"""
+        workspace = os.getcwd()
+        if os.path.exists(os.path.join(workspace, ".workspace.json")):
+            try:
+                repositories_define_path = os.path.join(workspace, ".workspace.json")
+                repositories_define = None
+                with open(repositories_define_path, "r") as f:
+                    repositories_define = json.loads(f.read())
+                    for repo in repositories_define["repositories"]:
+                        name = repo["name"]
+                        version = repo["version"]
+                        self.repositories.append(Repository(name, version))
+            except Exception as ex:
+                ErrCode.send_error(
+                    ErrCode.PackageAttrErr,
+                    ["parse .workspace.json error: {}".format(str(ex))]
+                )
+        else:
+            self.metacli = MetaDataCli()
+            if platform.machine() == "aarch64":
+                self.metacli.run([Repository("apollo-core-arm", "latest")])
+                latest = self.metacli.get_latest_version("cyber").__str__()
+                self.repositories.append(Repository("apollo-core-arm", latest))
+            else:
+                self.metacli.run([Repository("apollo-core", "latest")])
+                latest = self.metacli.get_latest_version("cyber").__str__()
+                self.repositories.append(Repository("apollo-core", latest))
+            
+            # with open(os.path.join(workspace, ".workspace.json"), "w+") as f:
+            #     f.write(json.dumps({"apollo-core": {"version": latest}}))
+
+        if len(self.repositories) == 0:
+            ErrCode.send_error(
+                    ErrCode.PackageAttrErr,
+                    ["can find any repository in .workspace.json"]
+                )
+
     def construct_targets_desc(self, **kwargs):
         """construct local package cyberfile"""
         target_set = dict()
@@ -253,8 +301,7 @@ class Action(object):
                 continue
             
             # support workspace imported 3rd package
-            if desc.type != "module" and desc.type != "third-wrapper"\
-                and desc.name not in get_config("packages", "special_wrapper"):
+            if desc.type != "module":
                 continue
             
             targets.append(desc)

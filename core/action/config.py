@@ -48,14 +48,16 @@ class Action(CoreAction):
     def add_argument(parser):
         """add config command parser
         """
-        subparser = parser.add_subparsers(
-            help='config command', dest='config_command')
+        subparser = parser.add_subparsers(help='config command',
+                                          dest='config_command')
         set_parser = subparser.add_parser('set', help='set buildtool config')
         set_parser.add_argument(
-            '-g', '--global',
+            '-g',
+            '--global',
             dest='globalconfig',
-            type=bool,
+            action='store_true',
             help='set global config',
+            required=False,
         )
         set_parser.add_argument(
             'key',
@@ -69,10 +71,12 @@ class Action(CoreAction):
         )
         get_parser = subparser.add_parser('get', help='get buildtool config')
         get_parser.add_argument(
-            '-g', '--globalconfig',
+            '-g',
+            '--global',
             dest='globalconfig',
-            type=bool,
+            action='store_true',
             help='get global config',
+            required=False,
         )
         get_parser.add_argument(
             'keys',
@@ -152,11 +156,11 @@ class Action(CoreAction):
         #     return
 
         sources_file = '/etc/apt/sources.list.d/apolloauto.list'
-        subprocess.check_call(['sudo', 'bash', '-c',
-                               f'echo {source_line} > {sources_file}'],
-                              stdin=sys.stdin,
-                              stdout=sys.stdout,
-                              stderr=sys.stderr)
+        subprocess.check_call(
+            ['sudo', 'bash', '-c', f'echo {source_line} > {sources_file}'],
+            stdin=sys.stdin,
+            stdout=sys.stdout,
+            stderr=sys.stderr)
 
     def set_config(self, args):
         """set config

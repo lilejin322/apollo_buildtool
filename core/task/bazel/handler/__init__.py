@@ -17,6 +17,8 @@
 """Common class and function during building procedure"""
 import os
 import subprocess
+import sys
+import time
 from pathlib import Path
 from core.package_descriptor import Status
 
@@ -31,6 +33,35 @@ from core.package_identification.identifier import singleton
 logger = get_logger('buildtool')
 
 delimiter = "#######################################APOLLO#######################################"
+
+def progressbar(it, length, prefix="", out=sys.stdout,):
+    """get the progressbar output of procedure"""
+    count = length
+    start = time.time()
+    try:
+        size = int(os.get_terminal_size().columns / 4)
+    except:
+        size = 5
+    def show(j):
+        if count == 0:
+            return
+        x = int(size * j / count)
+        remaining = ((time.time() - start) / j) * (count - j)
+        
+        mins, sec = divmod(remaining, 60)
+        time_str = f"{int(mins):02}:{sec:05.2f}"
+        
+        print(f"  {prefix}[{'#'*x}{('.'*(size-x))}] {j}/{count} Est wait {time_str}",
+            end='\r', file=out, flush=True)
+        
+    for i, item in enumerate(it):
+        yield item
+        show(i + 1)
+    # clear last line
+    try:
+        print(" " * os.get_terminal_size().columns, end="\r")
+    except:
+        pass
 
 def _is_deprecated_package(pkg_desc):
     normal_path = os.path.join(
@@ -57,7 +88,7 @@ class Procedure(object):
         self._check_network()
 
     def _check_network(self):
-        cmd = ["wget", "-O-", get_config("url", "metadata"), ">/dev/null 2>&1"]
+        cmd = ["curl", get_config("api", "login"), ">/dev/null 2>&1"]
         if subprocess.call(" ".join(cmd), shell=True) != 0:
             self.online = False
 
@@ -153,7 +184,7 @@ class Procedure(object):
             )
             return False
         workspace_content = None
-        with workspace_wrapper.open("r+") as f:
+        with workspace_wrapper.open("r+", encoding="utf-8") as f:
             workspace_content = f.readlines()
         for i in range(len(workspace_content)):
             while "\n" in workspace_content[i]: 
@@ -209,14 +240,14 @@ class Procedure(object):
         workspace_content = delimiter + init_content + bazel_skylib_content + grpc_init_content + rule_proto_content + delimiter + "\n"
         workspace_content = user_up_content + "\n" + workspace_content + user_down_content
         
-        with workspace_wrapper.open("w+") as f:
+        with workspace_wrapper.open("w+", encoding="utf-8") as f:
             f.write(workspace_content)
 
         apollo_root = get_config("base", "apollo_root")
         content = get_setup()
         if content is None:
             return False
-        with open(os.path.join(apollo_root, "setup.sh"), "w+") as f:
+        with open(os.path.join(apollo_root, "setup.sh"), "w+", encoding="utf-8") as f:
             f.write(content)
         return True
     
@@ -262,7 +293,7 @@ class Procedure(object):
             entry_func_content = "    pass"
         
         content = load_headers + "\n" + init_func_content + "\n" + entry_func + entry_func_content
-        with deps_file_wrapper.open("w+") as f:
+        with deps_file_wrapper.open("w+", encoding="utf-8") as f:
             f.write(content)
 
         # Replace src and import workspace depends
@@ -278,7 +309,7 @@ class Procedure(object):
                 ) 
                 return False
 
-            with bazel_support_default_file_wrapper.open("r") as f:
+            with bazel_support_default_file_wrapper.open("r", encoding="utf-8") as f:
                 bazel_support_default_content = f.read()
 
             childs_desc = kwargs["childs"]
@@ -287,7 +318,7 @@ class Procedure(object):
             bazel_support_replace_content = bazel_support_default_content.replace("@@SRC_REPLACEMENT@@", ",".join(self.replace_content_list))
             bazel_support_replace_content = bazel_support_replace_content.replace("@@GEN_WS_DEPS@@", ",".join(self.workspace_deps_list))
 
-            with bazel_support_file_wrapper.open("w+") as f:
+            with bazel_support_file_wrapper.open("w+", encoding="utf-8") as f:
                 f.write(bazel_support_replace_content)
 
         return True
@@ -313,7 +344,7 @@ def link_target(src: str, dst: str):
         return False
     dst_wrapper = Path(dst)
     if dst_wrapper.is_symlink():
-        dst_wrapper.unlink()
+        subprocess.run("sudo rm -f {}".format(dst), shell=True)
 
     if dst_wrapper.exists():
         logger.warning("Path {} is occupied".format(dst))
@@ -339,12 +370,14 @@ def func_name_check(func_name: str, pkg_desc: PackageDesc):
         pass
     while "-" in func_name:
         func_name = func_name.replace("-", "_")
+    while "." in func_name:
+        func_name = func_name.replace(".", "")
     return func_name
 
 def _read_origin_package_name(pkg_desc: PackageDesc):
     cyberfile_in_ws_content = None 
     package_cyberfile = Path(pkg_desc.workspace) / "cyberfile.xml"
-    with package_cyberfile.open("r") as f:
+    with package_cyberfile.open("r", encoding="utf-8") as f:
         cyberfile_in_ws_content = f.read()
 
     ider = PackageIdentification()

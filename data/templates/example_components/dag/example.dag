@@ -1,6 +1,6 @@
 # Define all coms in DAG streaming.
     module_config {
-    module_library : "/opt/apollo/neo/packages/example-components-dev/latest/lib/libcomponent_examples.so"
+    module_library : "example_components/libcomponent_examples.so"
     timer_components {
         class_name : "TimerCommonComponentSample"
         config {

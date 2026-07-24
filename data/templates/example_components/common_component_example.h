@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2023 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,20 @@
 #pragma once
 #include <memory>
 
-#include "cyber/component/component.h"
+#include "cyber/cyber.h"
 #include "example_components/proto/examples.pb.h"
-#include "example_lib/include/external_lib.h"
+#include "example_lib/external_lib.h"
 
-class CommonComponentSample : public apollo::cyber::Component<example::proto::Driver, example::proto::Driver> {
+namespace apollo {
+namespace example {
+
+  class CommonComponentSample : public cyber::Component<example::proto::Driver, example::proto::Driver> {
     public:
     bool Init() override;
     bool Proc(const std::shared_ptr<example::proto::Driver>& msg0,
         const std::shared_ptr<example::proto::Driver>& msg1) override;
-};
-CYBER_REGISTER_COMPONENT(CommonComponentSample)
+  };
+  CYBER_REGISTER_COMPONENT(CommonComponentSample)
+
+} // namespace example
+} //namespace apollo

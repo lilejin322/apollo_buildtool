@@ -68,6 +68,7 @@ class PackageDesc(object):
         self._lib_names = None
         self.expose = None
         self.builder = None
+        self.repository = None
         self.workspace = workspace
         self.init_type_match_config()
         self.init_default_import_type()

@@ -37,7 +37,7 @@ templ_path = bin_root + "/templates/"
 def generate_control(deb_conf):
     """generate `control` file"""
     control = ""
-    with open(bin_root + "/templates/control.in", "r") as f:
+    with open(bin_root + "/templates/control.in", "r", encoding="utf-8") as f:
         control = f.read()
 
     control = control.replace("@@NAME@@", deb_conf.name)
@@ -52,7 +52,7 @@ def generate_control(deb_conf):
         dep_list.append(d_obj.name)
     control = control.replace("@@DEPENDS@@", ", ".join(dep_list))
 
-    with open(W_DIR + deb_conf.name_ver + "/DEBIAN/control", "w") as cf:
+    with open(W_DIR + deb_conf.name_ver + "/DEBIAN/control", "w", encoding="utf-8") as cf:
         cf.write(control)
 
 
@@ -66,7 +66,7 @@ def generate_postinst(deb_conf):
     extend_ops = "\n".join(deb_conf.postinst_extend_ops)
 
     postinst = ""
-    with open(bin_root + "/templates/postinst.in", "r") as f:
+    with open(bin_root + "/templates/postinst.in", "r", encoding="utf-8") as f:
         postinst = f.read()
 
     postinst = postinst.replace("@@APOLLO_PATH@@", APOLLO_PATH)
@@ -75,7 +75,7 @@ def generate_postinst(deb_conf):
     postinst = postinst.replace("@@INCLUDE_PATH@@", include_path)
     postinst = postinst.replace("@@EXTEND_OP@@", extend_ops)
 
-    with open(W_DIR + name_ver + "/DEBIAN/postinst", "w") as pf:
+    with open(W_DIR + name_ver + "/DEBIAN/postinst", "w", encoding="utf-8") as pf:
         pf.write(postinst)
     shell_cmd("chmod 775 " + W_DIR + name_ver + "/DEBIAN/postinst")
 
@@ -87,11 +87,11 @@ def generate_other(deb_conf, file_name, ops):
     extend_ops = "\n".join(ops)
 
     other = ""
-    with open(bin_root + "/templates/other.in", "r") as f:
+    with open(bin_root + "/templates/other.in", "r", encoding="utf-8") as f:
         other = f.read()
 
     other = other.replace("@@EXTEND_OP@@", extend_ops)
 
-    with open(W_DIR + name_ver + "/DEBIAN/{}".format(file_name), "w") as pf:
+    with open(W_DIR + name_ver + "/DEBIAN/{}".format(file_name), "w", encoding="utf-8") as pf:
         pf.write(other)
     shell_cmd("chmod 775 " + W_DIR + name_ver + "/DEBIAN/{}".format(file_name))

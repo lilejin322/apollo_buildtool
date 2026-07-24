@@ -19,9 +19,12 @@
 import subprocess
 import os
 import shutil
+import requests
 from pathlib import Path
+from distutils.dir_util import copy_tree
+import xml.etree.ElementTree as ET
 
-from core import ErrCode
+from core import ErrCode, get_token, get_arch, get_codename
 from core.common import get_config
 from core.package_descriptor import Status
 from core.action import apollo_prefix
@@ -40,7 +43,8 @@ from core.task.bazel.handler import (
     _null_func,
     _create_pre_folders,
     func_name_check,
-    _is_deprecated_package
+    _is_deprecated_package,
+    progressbar
 )
 from core.package_identification.identifier import PackageIdentification
 from core import AptContext, AptStatus
@@ -61,128 +65,263 @@ def _check_packages_is_installed(pkg_desc: PackageDesc):
     returns: result of package is installed or not
     rtype: int
     """
-    #FIXME: local installed package is identified as symstem package
-    procedure = Procedure()
-    if procedure.installed_packages is None:
-        procedure.init_installed_packages()
-    pkg_name = _determine_deb_name(pkg_desc)
-    if pkg_name in procedure.installed_packages:
-        version = procedure.installed_packages[pkg_name]
-        if pkg_desc.type == "system":
-            return installed
-        if version != pkg_desc.version:
-            return reinstall
-        
-        package_id_file = os.path.join(
-            get_config("base", "apollo_root"),
-            get_config("base", "package_meta_prefix"),
-            pkg_desc.name, "cyberfile.xml")
-
-        deprecated_packages_path = os.path.join(
-            get_config("base", "apollo_root"),
-            get_config("base", "deprecated_package_path"),
-            pkg_desc.name, version, "cyberfile.xml") 
-            
-        if not os.path.exists(package_id_file) and not os.path.exists(deprecated_packages_path):
-            # if pkg_desc.type == "pure-binary":
-            #     return installed
-            ErrCode.send_error(
-                ErrCode.ModuleIsNotInstallErr,
-                ["Package {} is installed but not found!".format(pkg_desc.name)],
-                [
-                    "Try to 'apt remove {} && apt install {}' to reinstall the package to fix this problem.".format(
-                        pkg_desc.name, pkg_desc.name
-                    )
-                ]
-            )
-        return installed
-    else:
-        cmd = "{} list {} 2>/dev/null".format(AptContext.executable, pkg_name)
-        output = subprocess.check_output(cmd, shell=True).decode("utf-8")
-        try:
-            version = output.split(" ")[1]
-        except:
-            ErrCode.send_error(
-                ErrCode.AptErr,
-                ["Can not find {}".format(pkg_desc.name)],
-                ["try 'apt update --allow-insecure-repositories' to fix this issue"]
-            )
-
-        return not_installed
-
-def _determine_deb_name(pkg_desc: PackageDesc):
-    # determine name
     if pkg_desc.type == "system":
-        pkg_name = pkg_desc.name
+        # apt package
+        procedure = Procedure()
+        if procedure.installed_packages is None:
+            procedure.init_installed_packages()
+        if pkg_desc.name in procedure.installed_packages:
+            return installed
+        else:
+            cmd = "{} list {} 2>/dev/null".format(AptContext.executable, pkg_desc.name)
+            output = subprocess.check_output(cmd, shell=True).decode("utf-8")
+            try:
+                version = output.split(" ")[1]
+            except:
+                ErrCode.send_error(
+                    ErrCode.AptErr,
+                    ["Can not find {} in any apt repository".format(pkg_desc.name)],
+                )
+            return not_installed
     else:
+        # apollo package or user built package
+        meta_path = os.path.join(get_config("base", "apollo_root"),
+            get_config("base", "package_meta_prefix"), pkg_desc.name)
+        deprecated_packages_path = os.path.join(get_config("base", "apollo_root"),
+            get_config("base", "deprecated_package_path"), pkg_desc.name, pkg_desc.version)
+        if not os.path.exists(meta_path) and not os.path.exists(deprecated_packages_path):
+            return not_installed
+        cyberfile_path = None
+        cyberfile_version = None
+        if os.path.exists(os.path.join(meta_path, "cyberfile.xml")):
+            cyberfile_path = os.path.join(meta_path, "cyberfile.xml")
+        else:
+            cyberfile_path = os.path.join(deprecated_packages_path, "cyberfile.xml")
+        try:
+            cyberfile = ET.parse(cyberfile_path)
+            cyberfile_version = cyberfile.find("version").text
+        except Exception as ex:
+            logger.warning("Parse apollo package {} meta failed, try to reinstall it")
+            return reinstall
+        if cyberfile_version != pkg_desc.version:
+            if cyberfile_version == "local" or pkg_desc.version == "local":
+                # user pre built package, has highest priority
+                return installed
+            return reinstall
+        else:
+            return installed
+
+def _get_apollo_package_full_name(pkg_desc: PackageDesc):
+    if apollo_prefix not in pkg_desc.name:
         pkg_name = "{}{}".format(apollo_prefix, pkg_desc.name)
+    else:
+        pkg_name = pkg_desc.name
     return pkg_name
 
-def _common_func(pkg_desc: PackageDesc):
-    pkg_name = _determine_deb_name(pkg_desc)
-    status = _check_packages_is_installed(pkg_desc)
+def _return_deb_name(pkg_desc):
+    return "{}_{}.deb".format(pkg_desc.name, pkg_desc.version)
+
+def _request_apollo_package_in_playgroud(pkg_desc):
+    playgroud = os.path.join(
+        get_config("base", "apollo_root"), get_config("base", "playgroud_prefix"))
+    if not os.path.exists(playgroud):
+        os.makedirs(playgroud, exist_ok=True)
+    token = get_token()
+    arch = get_arch()
+    codename = get_codename()
+
+    headers = {"Host": "apollo.baidu.com", 
+            "Authorization": "Bearer {}".format(token)}
+    request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}".format(
+        get_config("api", "download"), pkg_desc.repository, arch, codename, 
+        _get_apollo_package_full_name(pkg_desc), pkg_desc.version,
+    )
+    
+    response = requests.get(
+        url=request_url, headers=headers, stream=True)
+    if response.status_code != 200:
+        ErrCode.send_error(
+            ErrCode.NetworkIoError, 
+            ["Download packages {} failed, status: {}".format(
+                pkg_desc.name, response.status_code)]
+    )
+    install_deb_name = _return_deb_name(pkg_desc) 
+    try:
+        with open(os.path.join(playgroud, install_deb_name), "wb") as f:
+            for chunk in progressbar(response.iter_content(chunk_size=4096), 
+                            int(int(response.headers["Content-Length"]) / 4096), "download: "):
+                f.write(chunk)
+    except Exception as ex:
+        ErrCode.send_error(
+            ErrCode.NetworkIoError, 
+            ["Download packages {} failed: {}".format(pkg_desc.name, str(ex))]
+        )
+        if os.path.exists(os.path.join(playgroud, install_deb_name)):
+            os.remove(os.path.join(playgroud, install_deb_name))
+    response.close()
+
+def _install_apollo_package_in_playgroud(pkg_desc):
+    logger.info("install {}...".format(pkg_desc.name))
+    playgroud = os.path.join(
+        get_config("base", "apollo_root"), get_config("base", "playgroud_prefix"))
+    install_deb_path = os.path.join(playgroud, _return_deb_name(pkg_desc))   
+    if not os.path.exists(install_deb_path):
+        ErrCode.send_error(
+            ErrCode.FileIoErr, 
+            ["Internal error: {} is not exists".format(install_deb_path)]
+        )
+
+    if pkg_desc.name.startswith("3rd") or pkg_desc.name == "bazel-extend-tools":
+        cmd = "{} {} {} 2>&1".format(
+            AptContext.executable, " ".join(AptContext.reinstall_args), install_deb_path)
+        p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        if p.returncode != 0:
+            ErrCode.send_error(ErrCode.AptErr,
+                ["Encouter error during install apollo apt package {}, detail:".format(pkg_desc.name)],
+                exit=False)
+            print("\033[36mstdout\033[0m: {}".format(p.stdout.decode("utf-8")), end="")
+            print("\033[36mstderr\033[0m: {}".format(p.stderr.decode("utf-8")), end="")
+            ErrCode.send_error(ErrCode.AptErr, ["Aborting process"]) 
+        os.remove(install_deb_path)
+        return
+
+    process_package_path = os.path.join(os.path.dirname(install_deb_path), "process_package")
+    if os.path.exists(process_package_path):
+        shutil.rmtree(process_package_path)    
+    
+    cmd = "{} {} {} {} 2>&1 && {} {} {} {} 2>&1".format(
+        "dpkg", "-x", install_deb_path, process_package_path,
+        "dpkg", "-e", install_deb_path, process_package_path)
+
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    if p.returncode != 0:
+        ErrCode.send_error(ErrCode.AptErr,
+            ["Encouter error during decompress {}, detail:".format(pkg_desc.name)],
+            exit=False)
+        print("\033[36mstdout\033[0m: {}".format(p.stdout.decode("utf-8")), end="")
+        print("\033[36mstderr\033[0m: {}".format(p.stderr.decode("utf-8")), end="")
+        ErrCode.send_error(ErrCode.AptErr, ["Aborting process"])
+
+    prerm_in_package = os.path.join(process_package_path, "prerm") 
+    postrm_in_package = os.path.join(process_package_path, "postrm")  
+    preinst_in_package = os.path.join(process_package_path, "preinst") 
+    postinst_in_package = os.path.join(process_package_path, "postinst")
+
+    if not os.path.exists(prerm_in_package) or \
+        not os.path.exists(postrm_in_package) or \
+        not os.path.exists(preinst_in_package) or \
+        not os.path.exists(postinst_in_package):
+        ErrCode.send_error(ErrCode.PackageAttrErr,
+            [
+                "package {} is missing install and rm scripts".format(pkg_desc.name),
+                "please report this package to Apollo maintainers",
+            ],
+        )
+
+    # check older version and remove
+    meta_path = os.path.join(get_config("base", "apollo_root"),
+            get_config("base", "package_meta_prefix"), pkg_desc.name)
+    prerm = "{}/prerm".format(meta_path)
+    postrm = "{}/postrm".format(meta_path)
+    preinst = "{}/preinst".format(meta_path) 
+    postinst = "{}/postinst".format(meta_path) 
+
+    if os.path.exists(prerm):
+        cmd = "sudo {}".format(prerm)
+        p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
+        if p.returncode != 0:
+            ErrCode.send_error(ErrCode.PackageAttrErr,
+                [
+                    "delete {} error, causing by invalid rm scripts".format(pkg_desc.name),
+                    "please contact apollo maintainers"
+                ],
+            )
+    if os.path.exists(postrm):
+        cmd = "sudo {}".format(postrm)
+        p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
+        if p.returncode != 0:
+            ErrCode.send_error(ErrCode.PackageAttrErr,
+                [
+                    "delete {} error, causing by invalid rm scripts".format(pkg_desc.name),
+                    "please contact apollo maintainers"
+                ],
+            )
+
+    cmd = "sudo {}".format(preinst_in_package)
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
+    if p.returncode != 0:
+        ErrCode.send_error(ErrCode.PackageAttrErr,
+            ["preinst {} error, please contact apollo maintainers".format(pkg_desc.name)],
+        )
+    
+    copy_tree("{}/".format(os.path.join(
+            process_package_path, get_config("base", "apollo_root")[1:])), 
+        "{}/".format(get_config("base", "apollo_root")))
+
+    cmd = "sudo {}".format(postinst_in_package)
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
+    if p.returncode != 0:
+        ErrCode.send_error(ErrCode.PackageAttrErr,
+            ["postinst {} error, please contact apollo maintainers".format(pkg_desc.name)],
+        )
+    
+    # copy scripts
+    shutil.copy2(prerm_in_package, prerm)
+    shutil.copy2(postrm_in_package, postrm)
+    shutil.copy2(preinst_in_package, preinst)
+    shutil.copy2(postinst_in_package, postinst)
+
+    os.remove(install_deb_path)
+    shutil.rmtree(process_package_path)
+
+def _install_package_before_proceed(pkg_desc: PackageDesc):
     procedure = Procedure()
+    status = _check_packages_is_installed(pkg_desc)
     if status == installed:
         return
     elif status == reinstall:
         if not procedure.get_network_status():
             ErrCode.send_error(
                 ErrCode.NetworkIoError,
-                ["offline mode can not install any packages!"],
+                ["Network error: please checkout your network condition"],
             )
-        logger.info("{} want version {}, try to reinstall it".format(pkg_desc.name, pkg_desc.version))
-        logger.info("Uninstall {}...".format(pkg_desc.name))
-        cmd = "{} install -y --reinstall {}={} >/dev/null 2>&1".format(AptContext.executable, pkg_name, pkg_desc.version)
-        ret = subprocess.run(cmd, stderr=subprocess.STDOUT, shell=True)
-        if ret.returncode != 100 and ret.returncode != AptStatus.COMPLETE._value_:
+        if pkg_desc.type == "system":
             ErrCode.send_error(
-                ErrCode.AptErr,
-                ["apt error, return code: {}".format(ret.returncode)]
+                ErrCode.UnknownErr,
+                ["Internal error: apt package with abnormal install status"],
             )
+        else:
+            logger.info("{} want version {}, try to reinstall it".format(pkg_desc.name, pkg_desc.version))
+            _request_apollo_package_in_playgroud(pkg_desc)
+            _install_apollo_package_in_playgroud(pkg_desc) 
 
-        logger.info("{} successfully uninstalled".format(pkg_desc.name))
+        logger.info("reinstall {} successfully ".format(pkg_desc.name))
         return
     
     # install package
     if not procedure.get_network_status():
-            ErrCode.send_error(
-                ErrCode.NetworkIoError,
-                ["offline mode can not install any packages!"],
-            )
+        ErrCode.send_error(
+            ErrCode.NetworkIoError,
+            ["Network error: please checkout your network condition"],
+        )
     logger.info("Install {}...".format(pkg_desc.name))
-    pkg_format = "{}={}".format(pkg_name, pkg_desc.version) \
-        if pkg_desc.type != "system" else pkg_name
-    cmd = "{} {} {} >/dev/null 2>&1".format(
-        AptContext.executable, 
-        " ".join(AptContext.install_args), 
-        pkg_format
-    )
-
-    ret = subprocess.run(cmd, stderr=subprocess.STDOUT, shell=True) 
-    if ret.returncode == AptStatus.NOT_FOUND._value_: 
-        ErrCode.send_error(
-            ErrCode.AptErr,
-            ["package not found, it may be caused by unstable network conditions"],
-            ["Please try again to continue building process"]
-        )
-
-    if ret.returncode != 100 and ret.returncode != AptStatus.COMPLETE._value_:
-        ErrCode.send_error(
-            ErrCode.AptErr,
-            ["apt error, return code: {}".format(ret.returncode)]
-        )
-
     if pkg_desc.type == "system":
-        return
+        pkg_format = pkg_desc.name
+        cmd = "{} {} {} 2>&1".format(AptContext.executable, 
+            " ".join(AptContext.install_args), pkg_format)
+        
+        p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        if p.returncode != 0:
+            ErrCode.send_error(ErrCode.AptErr,
+                ["Encouter error during install {}, apt detail:".format(pkg_desc.name)],
+                exit=False)
+            print("\033[36mstdout\033[0m: {}".format(p.stdout.decode("utf-8")), end="")
+            print("\033[36mstderr\033[0m: {}".format(p.stderr.decode("utf-8")), end="")
+            ErrCode.send_error(ErrCode.AptErr, ["Aborting process"])
 
-    # apollo_package_path = Path(get_config("base", "apollo_package_path"))
-    # cyberfile = apollo_package_path / _package_name_to_dir(pkg_desc.name) / "latest" / "cyberfile.xml"
-    # if not cyberfile.exists() and pkg_desc.type != "pure-binary":
-    #     ErrCode.send_error(
-    #         ErrCode.FileIoErr,
-    #         ["Package {} installed but cyberfile not found!".format(pkg_desc.name)],
-    #         ["Contact Apollo maintainers for helping to address this issue"]
-    #     )
+    else:
+        _request_apollo_package_in_playgroud(pkg_desc)
+        _install_apollo_package_in_playgroud(pkg_desc)
 
     logger.info("{} successfully installed".format(pkg_desc.name))
 
@@ -204,7 +343,7 @@ def _copy_package_to_workspace(pkg_desc: PackageDesc, workspace: str, **kwargs):
             get_config("base", "package_meta_prefix"),
             pkg_desc.name
         )
-        with open(os.path.join(package_meta_prefix, "meta.txt"), "r") as f:    
+        with open(os.path.join(package_meta_prefix, "meta.txt"), "r", encoding="utf-8") as f:
             module_src = (f.read().split("\n")[-1]).split(":")[-1]
         copy_source = Path(os.path.join(
             get_config("base", "apollo_root"),
@@ -253,7 +392,7 @@ def module_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
                     ["{} is occupied and cyberfile is not found.".format(str(package_workspace_path))]
                 )
 
-            with cyberfile_in_ws.open("r") as f:
+            with cyberfile_in_ws.open("r", encoding="utf-8") as f:
                 cyberfile_in_ws_content = f.read()
             
             ider = PackageIdentification()
@@ -286,12 +425,13 @@ def module_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
             logger.info("The source code of {} existed in workspace. Force using the source code.".format(pkg_desc.name))
         else:
             # install package
-            _common_func(pkg_desc)
+            _install_package_before_proceed(pkg_desc)
             # set package current path
             if "legacy" in kwargs and kwargs["legacy"]:
                 return 0
             pkg_desc.workspace = _copy_package_to_workspace(pkg_desc, workspace, **kwargs)
 
+        # if workspace != os.getenv("APOLLO_PATH"):
         if not os.path.exists("tools/proto/proto.bzl.tpl"):
             ErrCode.send_error(
                 ErrCode.FileIoErr,
@@ -299,47 +439,22 @@ def module_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
                 ["Add '<depend>bazel-extend-tool</depend> of {}'".format(pkg_desc.name)]
             )
         content = None
-        with open("tools/proto/proto.bzl.tpl", "r") as f:
+        with open("tools/proto/proto.bzl.tpl", "r", encoding="utf-8") as f:
             src_value = pkg_desc.real_src_to_related_path()
             content = f.read()
             content = content.replace("@@REPLACE@@", src_value)
-        with open("tools/proto/proto.bzl", "w+") as f:
+        with open("tools/proto/proto.bzl", "w+", encoding="utf-8") as f:
             f.write(content)
-            
-        # since unstable install_src rule, delete these code for the source code not updated
-        # if not _is_deprecated_package(pkg_desc):
-        #     if "label" not in kwargs:
-        #         package_meta = os.path.join(
-        #             get_config("base", "apollo_root"),
-        #             get_config("base", "package_meta_prefix"),
-        #             pkg_desc.name, "meta.txt" 
-        #         )
-        #         with open(package_meta, "r") as f:
-        #             package_src = (f.read().split("\n")[-1]).split(":")[-1]
-        #         src_path = os.path.join(
-        #             get_config("base", "apollo_root"),
-        #             get_config("base", "source_path_prefix"),
-        #             package_src
-        #         )
-        #         include_path = os.path.join(
-        #             get_config("base", "apollo_root"),
-        #             get_config("base", "include_path_prefix"),
-        #             package_src
-        #         )
-        #         if os.path.exists(src_path):
-        #             shutil.rmtree(src_path)
-        #         if os.path.exists(include_path):
-        #             shutil.rmtree(include_path)
     else:
-        _common_func(pkg_desc)
+        _install_package_before_proceed(pkg_desc)
 
         virtual_path = Path(os.path.join(workspace, pkg_desc.real_src_to_related_path()))
-        if virtual_path.exists():
-            ErrCode.send_error(
-                ErrCode.OccupiedErr,
-                ["{} have been occupied".format(pkg_desc.name)],
-                ["If you really need this package, add or Modify 'src_path' attribute in depend label to fix this issue."]
-            )
+        if workspace != os.getenv("APOLLO_PATH"):
+            if virtual_path.exists():
+                ErrCode.send_error(
+                    ErrCode.OccupiedErr,
+                    ["{} have been occupied".format(pkg_desc.name)],
+                )
         
         dev_path = "dev/bazel/"
         if _is_deprecated_package(pkg_desc):
@@ -401,7 +516,7 @@ def module_wrapper_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """preprocess function for module-wrapper"""
     apollo_packages_path = Path(get_config("base", "apollo_package_path"))
     def common_wrapper_func():
-        _common_func(pkg_desc)
+        _install_package_before_proceed(pkg_desc)
         apollo_package_path = Path(get_config("base", "apollo_package_path"))
         src = pkg_desc.src
         if src != pkg_desc.real_src:
@@ -414,71 +529,30 @@ def module_wrapper_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
 
         link_dst = os.path.join(workspace, src)
         link_src = apollo_package_path / pkg_desc.name / "latest" / "src"
+        cyberfile = os.path.join(link_dst, "cyberfile.xml")
+        # checking for occupied or self
+        if os.path.exists(cyberfile) and not os.path.islink(link_dst):
+            ider = PackageIdentification()
+            local_desc = PackageDesc()
+            with open(cyberfile, "r") as f:
+                cyberfile_content = f.read()
+            ider.identify(local_desc, cyberfile_content)
+            if local_desc.name == pkg_desc.name:
+                return
         if not link_target(str(link_src), str(link_dst)):
             ErrCode.send_error(
                 ErrCode.PackageAttrErr,
                 ["link {} to {} failed".format(str(link_src), str(link_dst))]
             )
-
-    if pkg_desc.name in get_config("packages", "special_wrapper"):
-        def dealing_func():
-            ret = None
-            if pkg_desc.workspace:
-                # when invoked install action
-                if "f" not in kwargs:
-                    return
-                ret = kwargs["f"]()
-                # link local build production to latest
-                local_wrapper = apollo_packages_path / _package_name_to_dir(pkg_desc.name) / "local"
-                latest_wrapper = apollo_packages_path / _package_name_to_dir(pkg_desc.name) / "latest"
-                if not link_target(str(local_wrapper), str(latest_wrapper)):
-                    ErrCode.send_error(
-                        ErrCode.UnknownErr,
-                        ["Link local production to latest failed!"]
-                    )
-            else:
-                common_wrapper_func()
-
-            dev_path = "dev/bazel/"
-            package_repo_path = apollo_packages_path / _package_name_to_dir(pkg_desc.name) / "latest"
-            package_build_file = package_repo_path / "{}.BUILD".format(pkg_desc.name) 
-            dst_dir_wrapper = Path(os.path.join(workspace, dev_path))
-            if not dst_dir_wrapper.exists():
-                _create_pre_folders(dev_path, workspace)
-            dst_wrapper = dst_dir_wrapper / "{}.BUILD".format(pkg_desc.name)
-            if not link_target(str(package_build_file), str(dst_wrapper)):
-                ErrCode.send_error(
-                    ErrCode.ModuleIsNotInstallErr,
-                    ["This package is missing some necessary files"],
-                    [
-                        "If you are using standard Apollo package, reinstall this package may solve this problem: ",
-                        "\tsudo apt install --reinstall {}{}".format(apollo_prefix, pkg_desc.name),
-                        "If you still encouter this problm, please report this package to Apollo maintainers"
-                    ]
-                )
-
-            # generate init func
-            init_func_info = generate_init_func_content(pkg_desc, str(dst_wrapper), workspace)
-            if init_func_info is None:
-                ErrCode.send_error(
-                    ErrCode.FileIoErr,
-                    ["Can not generate necessary infomation"]
-                )
-
-            depend_info_pool = Procedure()
-            depend_info_pool.add_init_func_info(init_func_info)
-            depend_info_pool.add_workspace_dep(_dertermine_workspace_dep_name(pkg_desc), pkg_desc)
-            return ret
+        return
     
-        return dealing_func()
-    else:
-        if pkg_desc.type == "module-wrapper" or (pkg_desc.workspace is None and pkg_desc.type == "third-wrapper"):
-            common_wrapper_func()
-        return 0
+    # if pkg_desc.type == "module-wrapper" or (pkg_desc.workspace is None and pkg_desc.type == "third-wrapper"):
+    common_wrapper_func()
+    return 0
 
 def third_binary_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """preprocess function for third-binary"""
-    _common_func(pkg_desc)
+    _install_package_before_proceed(pkg_desc)
     dev_path = "dev/bazel/"
     apollo_packages_path = Path(get_config("base", "apollo_package_path"))
     apollo_root_path  = Path(get_config("base", "apollo_root"))
@@ -533,10 +607,10 @@ def third_wrapper_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     module_wrapper_preprocess(pkg_desc, workspace)
 
     # wrapper package need to install
-    if pkg_desc.workspace:
-        ret = kwargs["f"]()
-        if ret != 0:
-            return ret
+    # if pkg_desc.workspace:
+    #     ret = kwargs["f"]()
+    #     if ret != 0:
+    #         return ret
 
     src = pkg_desc.src
     #if src[-1] == "/":
@@ -567,7 +641,7 @@ def third_wrapper_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
 
 def system_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """preprocess function for system"""
-    _common_func(pkg_desc)
+    _install_package_before_proceed(pkg_desc)
     dev_path = "dev/bazel/"
     dev_path_wrapper = Path(os.path.join(workspace, dev_path))
     if not dev_path_wrapper.exists():
@@ -585,7 +659,7 @@ def system_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
             ["Create basic data for package {} error!".format(pkg_desc)]
         )
     
-    with dst_wrapper.open("w+") as f:
+    with dst_wrapper.open("w+", encoding="utf-8") as f:
         f.write(build_content)
 
     depend_info_pool = Procedure()
@@ -597,7 +671,7 @@ def system_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
 # deprecated
 def pure_binary_preprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """preprocess function for pure-binary"""
-    _common_func(pkg_desc)
+    _install_package_before_proceed(pkg_desc)
     apollo_packages_path = Path(get_config("base", "apollo_package_path"))
     apollo_root_path  = Path(get_config("base", "apollo_root"))
     

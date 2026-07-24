@@ -23,7 +23,7 @@ def generate_workspace_bzl(deb_conf, depend_obj):
     """create `src/workspace.bzl` file"""
 
     workspace_bzl = ""
-    with open(templ_path + "workspace.bzl.in", "r") as f:
+    with open(templ_path + "workspace.bzl.in", "r", encoding="utf-8") as f:
         workspace_bzl = f.read()
 
     # e.g. @com_github_google_glog//:glog
@@ -41,7 +41,7 @@ def generate_workspace_bzl(deb_conf, depend_obj):
     workspace_bzl_file_dir = W_DIR + deb_conf.name_ver + APOLLO_PATH + "packages/" + deb_conf.module_name + "/src"
     if '' != workspace_bzl_file_dir and not os.path.exists(workspace_bzl_file_dir):
         os.makedirs(workspace_bzl_file_dir)
-    with open(workspace_bzl_file_dir + "/workspace.bzl", "w") as cf:
+    with open(workspace_bzl_file_dir + "/workspace.bzl", "w", encoding="utf-8") as cf:
         cf.write(workspace_bzl)
 
 

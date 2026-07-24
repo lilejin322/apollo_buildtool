@@ -72,7 +72,7 @@ class PackageBuilder(object):
         self.use_gpu = False
         self.parser = argparse.ArgumentParser(description='build tools of apollo')
         self.parser.add_argument(
-            '-v', '--version', action='version', version='9.0.0-alpha2-r1')
+            '-v', '--version', action='version', version='9.0.0-alpha3-r3')
         subparsers = self.parser.add_subparsers(help='sub-command')
 
         if len(sys.argv) <= 1:
@@ -137,17 +137,23 @@ class PackageBuilder(object):
     def check_gpu_existence(self):
         """check env"""
         if platform.machine() == "aarch64":
-            driver_existence = subprocess.check_output(["lsmod | grep -q nvgpu"], shell=True)
-            cuda_existence = subprocess.check_output(["ldconfig -p | grep -q cudart"], shell=True)
-            if driver_existence is not None and cuda_existence is not None:
-                self.use_gpu = True
+            try:
+                driver_existence = subprocess.check_output(["lsmod | grep -q nvgpu"], shell=True)
+                cuda_existence = subprocess.check_output(["ldconfig -p | grep -q cudart"], shell=True)
+                if driver_existence is not None and cuda_existence is not None:
+                    self.use_gpu = True
+            except:
+                pass
         else:
-            if subprocess.call(['nvidia-smi >/dev/null 2>&1'], shell=True) == 0 and \
-                    subprocess.check_output(
-                        'nvidia-smi 2>/dev/null | grep "Driver Version"', shell=True) is not None:
-                self.use_gpu = True
+            try:
+                if subprocess.call(['nvidia-smi >/dev/null 2>&1'], shell=True) == 0 and \
+                        subprocess.check_output(
+                            'nvidia-smi 2>/dev/null | grep "Driver Version"', shell=True) is not None:
+                    self.use_gpu = True
+            except:
+                pass
         if not self.use_gpu:
-            logger.warn("Gpu is not available, using cpu instead")
+            logger.warning("Gpu is not available, using cpu instead")
 
     def check_in_docker_env(self):
         """check env"""
@@ -184,9 +190,9 @@ class PackageBuilder(object):
 
         for env_file in target_file:
             content = None
-            with env_file.open("r") as f:
+            with env_file.open("r", encoding="utf-8") as f:
                 content = f.read()
-            env_file_io = env_file.open("a+")
+            env_file_io = env_file.open("a+", encoding="utf-8")
             if content == "":
                 env_file_io.write("#! /bin/bash\n")
             if rc not in content:

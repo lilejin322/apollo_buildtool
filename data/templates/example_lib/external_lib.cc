@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2023 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#include "example_lib/include/external_lib.h"
+#include "example_lib/external_lib.h"
 
-void external_func_hello() {
+namespace apollo {
+namespace example_lib {
+
+  void external_func_hello() {
     AINFO << "Hello!";
-}
+  }
 
-void external_func_bye() {
+  void external_func_bye() {
     AINFO << "Bye!";
-}
+  }
+
+} //namespace example_lib
+} //namespace apollo
+

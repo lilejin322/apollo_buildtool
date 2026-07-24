@@ -17,11 +17,13 @@
 """
 topologically sort the dependencies.
 """
+import os
 import heapq as hq
 import sys
 from core.package_descriptor import Status
 from core.package_descriptor import PackageDesc
 from core.logging import get_logger
+from core.common import get_config
 from core import ErrCode
 
 
@@ -76,7 +78,7 @@ class Graph(object):
         self.heap = list()
         self.version_result = version_result
         self.desc_poll = desc_poll
-        self._build_graph(packages, targets)      
+        self._build_graph(packages, targets)
 
     def _build_graph(self, packages, targets):
         """
@@ -97,19 +99,28 @@ class Graph(object):
             for target in targets:
                 self._build_node(target, None, targets)
 
-    def _return_origin_package_desc(self, dep_attr):
-        null_pkg_desc = PackageDesc()
-        null_pkg_desc.fulfill_src_type(dep_attr)
-        null_pkg_desc.type = "system"
-        # TODO: need better logic to handle system pakcage
-        null_pkg_desc.builder = "bazel"
-        null_pkg_desc.status = Status.VALID
-        return null_pkg_desc
+    def _return_non_apollo_package_desc(self, dep_attr):
+        non_apollo_pkg_desc = PackageDesc()
+        non_apollo_pkg_desc.fulfill_src_type(dep_attr)
+        # check the package is apt package or user building package
+        package_meta_path = os.path.join(
+            get_config("base", "apollo_root"),
+            get_config("base", "package_meta_prefix")
+        )
+        if os.path.exists(os.path.join(
+            package_meta_path, non_apollo_pkg_desc.name)):
+            non_apollo_pkg_desc.type = "module"
+            non_apollo_pkg_desc.version = "local"
+        else:
+            non_apollo_pkg_desc.type = "system"
+        non_apollo_pkg_desc.builder = "bazel"
+        non_apollo_pkg_desc.status = Status.VALID
+        return non_apollo_pkg_desc
 
     def _get_desc_by_name(self, dep_attr):
         name = dep_attr.name
         if name not in self.version_result:
-            return self._return_origin_package_desc(dep_attr)
+            return self._return_non_apollo_package_desc(dep_attr)
         version = self.version_result[name]
         try:
             pkg_desc = self.desc_poll[name][version]
