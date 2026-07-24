@@ -43,7 +43,7 @@ from core import ErrCode
 
 # it may cause apt error
 #signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-VERSION = '9.0.0-rc-r1'
+VERSION = '9.0.0-rc1-r1'
 
 
 def exit_handler():

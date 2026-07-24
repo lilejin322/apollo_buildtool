@@ -99,12 +99,13 @@ class Action(object):
         if version == pkg_desc.version:
             return
 
-        new_pkg_hash_val = _request_hash_of_package(pkg_desc)
-        stored_pkg_hash_val = _get_stored_hash_of_package(pkg_desc)
-        if new_pkg_hash_val == stored_pkg_hash_val and \
-                new_pkg_hash_val != "" and stored_pkg_hash_val != "":
-            logger.info(f"No removal of {pkg_desc.name} due to hash consistency")
-            return
+        if pkg_desc.import_type != "src":
+            new_pkg_hash_val = _request_hash_of_package(pkg_desc)
+            stored_pkg_hash_val = _get_stored_hash_of_package(pkg_desc)
+            if new_pkg_hash_val == stored_pkg_hash_val and \
+                    new_pkg_hash_val != "" and stored_pkg_hash_val != "":
+                logger.info(f"No removal of {pkg_desc.name} due to hash consistency")
+                return
 
         logger.info(f"Requiring {pkg_desc.name}={pkg_desc.version}, Removing {pkg_desc.name}={version}")
 
