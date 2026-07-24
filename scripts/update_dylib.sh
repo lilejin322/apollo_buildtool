@@ -28,5 +28,6 @@ if [ ! "${hash_val}" = "`cat ${LD_CACHE}`" ]; then
     sudo chmod a+w /etc/ld.so.conf.d/apollo.conf
     echo "">/etc/ld.so.conf.d/apollo.conf
     readdir $APOLLO_LIB_PATH
-    sudo ldconfig 2>&1 >/dev/null
 fi
+
+sudo ldconfig 2>&1 >/dev/null

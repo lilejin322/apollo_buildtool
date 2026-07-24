@@ -214,7 +214,7 @@ class BazelBuildTask(BazelBaseTask):
         cmd_install = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
             ["{}:install".format(pkg_desc.real_src)] + ["--", install_parm]
 
-        ret = subprocess.run(" ".join(cmd_install), stderr=subprocess.STDOUT, shell=True)
+        ret = subprocess.run(" ".join(cmd_install_src), stderr=subprocess.STDOUT, shell=True)
         if ret.returncode != 0:
             ErrCode.send_error(
                 ErrCode.BazelErr,
@@ -224,7 +224,7 @@ class BazelBuildTask(BazelBaseTask):
             )
             return ret.returncode
 
-        ret = subprocess.run(" ".join(cmd_install_src), stderr=subprocess.STDOUT, shell=True)
+        ret = subprocess.run(" ".join(cmd_install), stderr=subprocess.STDOUT, shell=True)
         if ret.returncode != 0:
             ErrCode.send_error(
                 ErrCode.BazelErr,
