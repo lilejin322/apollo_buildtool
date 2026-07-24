@@ -168,7 +168,7 @@ class Action(core.action.Action):
         package_name = f'demo-{template}'
         if args.name is not None:
             # override package_name
-            package_name = args.name
+            package_name = snake_to_kebab_case(pascal_to_kebab_case(args.name))
         else:
             if args.package_path is not None:
                 package_name = snake_to_kebab_case(
@@ -196,7 +196,10 @@ class Action(core.action.Action):
         author = args.author
         description = args.description
         namespaces = args.namespaces
+
         includes = args.includes
+        if includes is None:
+            includes = []
 
         channel_name = f'/apollo/{target_name}'
         if namespaces:
@@ -235,6 +238,8 @@ class Action(core.action.Action):
                 dependencies.append(dep_info)
 
         build_dependencies = args.build_dependencies
+        if build_dependencies is None:
+            build_dependencies = []
 
         template_vars = {
             'package_path': package_path,
@@ -262,6 +267,8 @@ class Action(core.action.Action):
 
         template = args.template
         template_vars = self.generate_template_vars(args)
+
+        print('template_vars: ', template_vars)
 
         if template == TEMPLATE_COMPONENT:
             # 1.create proto file
