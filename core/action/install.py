@@ -18,6 +18,7 @@
 install verb implement
 """
 import os
+import re
 import core.action
 from core import ErrCode
 from core.task.bazel.handler.router import Router
@@ -53,7 +54,7 @@ class Action(core.action.Action):
         self.cyberfile_dev = True
         self.workspace = os.getcwd()
         self.router = Router()
-    
+
     def execute(self, args, **kwargs):
         """main logic of action"""
         if AptContext.executable is None:
@@ -69,11 +70,11 @@ class Action(core.action.Action):
 
         self.packages = [
             {
-                "name": package, 
+                "name": package,
                 "version": ""
             } if "=" not in package else \
                 {
-                    "name": package.split("=")[0], 
+                    "name": package.split("=")[0],
                     "version": package.split("=")[1]
                 } for package in args.packages
         ]
@@ -98,7 +99,24 @@ class Action(core.action.Action):
 
         targets = new_targets
         packages = list()
+        match_packages = list()
+        available_packages = self.decider.metadata_cli.get_all_package_name()
         for i in self.packages:
+            if "*" in i["name"]:
+                find_flag = False
+                re_query = ".*".join(i["name"].split("*"))
+                for remote_package in available_packages:
+                    re_result = re.findall(re_query, remote_package)
+                    if len(re_result) != 0 and remote_package in re_result:
+                        find_flag = True
+                        match_packages.append(remote_package)
+                if not find_flag:
+                    logger.warning("can't find any package match the pattern {}".format(i["name"]))
+        if len(match_packages) != 0:
+            self.packages += [{"name": i, "version": ""} for i in match_packages]
+        for i in self.packages:
+            if "*" in i["name"]:
+                continue
             package_cyberfiles = str(self.decider.metadata_cli.acquire_cyberfile(i["name"]))
             if package_cyberfiles == "None":
                 ErrCode.send_error(
@@ -115,12 +133,12 @@ class Action(core.action.Action):
                     ErrCode.ParamErr,
                     [
                         "Version {} is not matched with available version {}, skip it".format(
-                            i["version"], 
+                            i["version"],
                             self.decider.metadata_cli.get_available_version_format(i["name"])
                         )
                     ],
                     exit=False
-                ) 
+                )
                 continue
             for package_desc in package_descs:
                 if package_desc.version == i["version"]:
@@ -137,7 +155,7 @@ class Action(core.action.Action):
                         break
                     packages.append(package_desc)
                     break
-        
+
         # check which package to be processed
         processed_package = list()
         for package_desc in packages:
@@ -164,22 +182,21 @@ class Action(core.action.Action):
                 continue
             package_desc.workspace = package_path
             processed_package.append(package_desc)
-        
+
         targets += processed_package
 
         # version determine
         self.decider(targets)
         version_results = self.decider.get_result()
         desc_poll = self.decider.cyberfile_source
-        
-        
+
         if len(processed_package) == 0:
             logger.info("No package will be processed")
             return 0
-        
+
         # topological order all targets
         targets, _ = build_order(processed_package, targets, version_results, desc_poll)
-        
+
         # determine real_src of those package and check status
         if not self._check_status_before_build(targets):
             return -1
@@ -206,10 +223,10 @@ class Action(core.action.Action):
         """add parser argument"""
         parser.add_argument(
             "packages",
-            nargs='*', type=str.lstrip, 
-            help='Install the packages' 
+            nargs='*', type=str.lstrip,
+            help='Install the packages'
         )
         parser.add_argument(
-            '--legacy', action='store_true', default=False, 
-            help='legacy way to install package' 
+            '--legacy', action='store_true', default=False,
+            help='legacy way to install package'
         )

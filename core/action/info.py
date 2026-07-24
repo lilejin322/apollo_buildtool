@@ -80,7 +80,6 @@ class Action(core.action.Action):
             all_remote_desc = []
             proceed_desc = []
 
-            self.decider.metadata_cli.init_all_cyberfile()
             for pkg_name in self.decider.metadata_cli.cyberfile_source:
                 cyberfile_content = self.decider.metadata_cli.cyberfile_source[pkg_name] 
                 descs = self.identifier.identify_all(cyberfile_content)
