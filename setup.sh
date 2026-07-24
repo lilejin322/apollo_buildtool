@@ -34,6 +34,7 @@ export GLOG_log_dir=${APOLLO_PATH}/data/log
 export GLOG_alsologtostderr=0
 export GLOG_colorlogtostderr=1
 export GLOG_minloglevel=0
+export GLOG_max_log_size=500
 export sysmo_start=0
 export USE_ESD_CAN=false
 
