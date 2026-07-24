@@ -113,6 +113,7 @@ class MetaDataCli(object):
                 self.raw_version_pool[name] = [
                     Version.parse(i["Version"].strip()) for i in self.raw_metadata_pool[name]
                 ]
+    
         else:
             for _, name in enumerate(self.raw_metadata_pool):
                 # parse cyberfile path
@@ -133,6 +134,10 @@ class MetaDataCli(object):
                 key = cmp_to_key(lambda x, y: 1 if len(x._text) > len(y._text) else x > y))
 
         if self.need_cached:
+            cyberfile_cahce_dir = "/".join(
+                cyberfile_cahce.split("/")[0: len(cyberfile_cahce.split("/"))-1])
+            if not os.path.exists(cyberfile_cahce_dir):
+                os.makedirs(cyberfile_cahce_dir)
             self._cached_all_cyberfile(cyberfile_cahce)
 
             with open(raw_metadatas_file, "w+") as f:
