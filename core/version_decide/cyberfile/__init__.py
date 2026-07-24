@@ -163,21 +163,71 @@ class MetaDataCli(object):
                 self.raw_cyberfile_path_pool[repo.name][name] = [
                     name for i in self.raw_metadata_pool[repo.name][name]
                 ]
-
+            
+            self._register_local_package()
+            local_package_in_repo = []
+            for _, name in enumerate(self.raw_metadata_pool[repo.name]): 
                 # parse version
+                version_str = [i["Version"].strip() for i in self.raw_metadata_pool[repo.name][name]]
                 versions = [parse_version(i["Version"].strip()) for i in self.raw_metadata_pool[repo.name][name]]
+
+                if name in self.local_package_pool and \
+                        self.local_package_pool[name]["repository"] == repo.name and \
+                        self.local_package_pool[name]["version"].strip() not in version_str:
+                    local_package_in_repo.append(name)
+                    version_str.append(self.local_package_pool[name]["version"].strip())
+                    versions.append(parse_version(self.local_package_pool[name]["version"].strip()))
+                
                 version_dict = {}
                 for i in range(len(versions)):
-                    version_dict[versions[i]] = self.raw_metadata_pool[repo.name][name][i]["Version"].strip()
+                    version_dict[versions[i]] = version_str[i]
                 versions.sort()
 
                 self.raw_version_pool[repo.name][name] = [
                     Version.parse(version_dict[i]) for i in versions
                 ]
 
-            self._cached_all_cyberfile(repo.name)
+            self._cached_all_cyberfile(repo.name, local_package_in_repo)
 
-    def _cached_all_cyberfile(self, ns):
+    def _register_local_package(self):
+        self.local_package_pool = {}
+        package_meta_path = os.path.join(
+            get_config("base", "apollo_root"), get_config("base", "package_meta_prefix"))
+        if not os.path.exists(package_meta_path):
+            return
+        for pkg in os.listdir(package_meta_path):
+            cyberfile = os.path.join(package_meta_path, pkg, "cyberfile.xml") 
+            if not os.path.exists(cyberfile):
+                continue
+            pkg = self.change_package_name(pkg)
+            ns_location = None
+            ns_version = None
+            for ns in self.repositories:  
+                if pkg in self.raw_cyberfile_path_pool[ns.name]:
+                    ns_location = ns.name
+                    ns_version = ns.version
+            # igonre non apollo package
+            if ns_location is not None:
+                root = ET.parse(cyberfile).getroot()
+                pkg_version = root.find("version").text
+                if pkg_version != "local": 
+                    self.local_package_pool[pkg] = {
+                        "version": pkg_version, 
+                        "repository": ns_location,
+                        "cyberfile": ET.tostring(root, encoding="utf-8").decode("utf-8")
+                    }
+                else:
+                    # Set the package version number to the repository specified version 
+                    # to avoid version leveling failures
+                    root.find("version").text = ns_version
+                    cyberfile_content = ET.tostring(root, encoding="utf-8").decode("utf-8")
+                    self.local_package_pool[pkg] = {
+                        "version": ns_version,
+                        "repository": ns_location,
+                        "cyberfile": cyberfile_content
+                    }
+
+    def _cached_all_cyberfile(self, ns, local_package):
         logger.info("update the local cache")
         prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), ns)
         cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename) 
@@ -203,8 +253,13 @@ class MetaDataCli(object):
             self.raw_cyberfile_pool[ns][name].append(
                 ET.tostring(elem, encoding='utf-8').decode("utf-8"))
         for name in self.raw_cyberfile_pool[ns]:
-            self.cyberfile_source[ns][name] = "<root>\n" + "\n".join(
-                            self.raw_cyberfile_pool[ns][name]) + "\n</root>"
+            remote_cyberfile_content = "\n".join(self.raw_cyberfile_pool[ns][name])
+            local_cyberfile_content = ""
+            if name in local_package:
+                local_cyberfile_content = self.local_package_pool[name]["cyberfile"]
+
+            merge_content = remote_cyberfile_content + "\n" + local_cyberfile_content
+            self.cyberfile_source[ns][name] = "<root>\n" + merge_content + "\n</root>"
         
         logger.info("update complete")
 

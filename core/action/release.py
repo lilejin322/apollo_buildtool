@@ -21,6 +21,7 @@ import os
 import subprocess
 import core
 import shutil
+import xml.etree.ElementTree as ET
 from core import ErrCode
 from core.topological_order import build_order
 from core.package_descriptor import PackageDesc
@@ -141,7 +142,12 @@ class Action(core.action.Action):
                     continue
                 _, cyberfile = self.decider.metadata_cli.acquire_cyberfile(child.name)
                 # local prebuilt package or package not found in remote
-                if child.version == "local" or cyberfile is None:
+                child_local_cyberfile = os.path.join(package_prefix, child.name, "cyberfile.xml")
+                if not os.path.exists(child_local_cyberfile):
+                    logger.warning("can't find {} in local storge, skip".format(child.name))
+                    continue
+                child_version = ET.parse(child_local_cyberfile).getroot().find("version").text
+                if child_version == "local" or cyberfile is None:
                     package_need_to_release.append(child.name)
                     targets_to_release_dict[child.name] = child
             package_need_to_release = list(set(package_need_to_release))

@@ -75,5 +75,5 @@ class BazelBaseTask(object):
         march_config = get_config("compile", "march")
         args_str += " --copt={} --host_copt={}".format(march_config, march_config)
         if platform.machine() == "aarch64":
-            args_str += " --copt=-fpic --host_copt=-fpic"
+            args_str += " --copt=-fPIC --host_copt=-fPIC"
         return [args_str]

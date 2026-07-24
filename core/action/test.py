@@ -228,6 +228,9 @@ class Action(core.action.Action):
         return False
 
     def _build_wrap(self, target, graph, workspace):
+        gpu_if_available = False
+        if "--config=cpu" not in self.known_options:
+            gpu_if_available = True
         try:
             builder = self.builder[target.builder]
         except KeyError:
@@ -251,9 +254,11 @@ class Action(core.action.Action):
                     gpu=self.cyberfile_gpu,
                     dbg=self.cyberfile_dbg,
                     dev=self.cyberfile_dev,
+                    gpu_if_available=gpu_if_available,
                     memories=0.75,
                     jobs=-1,
-                    childs=graph._get_node_by_name(target.name).return_all_childs()
+                    childs=graph._get_node_by_name(target.name).return_all_childs(),
+                    install_dep_only=False
                 ), 
                 pkg = target
             )
