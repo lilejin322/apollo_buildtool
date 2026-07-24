@@ -138,7 +138,7 @@ class PackageSource(BasePackageSource):
 
 class DeciderInterface(object):
     """decider output interface"""
-    def __init__(self, repositories):
+    def __init__(self, repositories, ignore_error=False):
         self.NON_VERSION = "None"
 
         self.source = None
@@ -148,7 +148,7 @@ class DeciderInterface(object):
         self.normal_deps_info = []
         self.package_version_info = {}
         self.repositories = repositories
-        self.metadata_cli = MetaDataCli()
+        self.metadata_cli = MetaDataCli(ignore_error=ignore_error)
         self.metadata_cli.run(repositories)
         self._init_package_source()
 

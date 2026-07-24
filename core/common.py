@@ -17,6 +17,10 @@
 """bazel configuration function set"""
 import hashlib
 import json
+import datetime
+import shutil
+import subprocess
+import platform
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 from jinja2.ext import Extension
@@ -55,7 +59,7 @@ def get_config(section, key):
 def get_template(template_name):
     """get the template content"""
     template_wrapper = Path(root) / 'data' / \
-        'templates' / '{}'.format(template_name)
+                       'templates' / '{}'.format(template_name)
     content = None
     if not template_wrapper.exists():
         return content
@@ -152,3 +156,41 @@ def generate_template(template_path, output_path, **kwargs):
     with open(output_path, 'w+', encoding="utf-8") as fn:
         content = template.render(kwargs)
         fn.write(content)
+
+
+def get_file_mdate(file_path):
+    """get file modify date"""
+    return datetime.datetime.fromtimestamp(os.path.getmtime(file_path)).date()
+
+
+def upgrade_version(version):
+    """upgrade version"""
+    id_token_path = get_config('cache', 'id_token')
+    id_token_tmp_path = get_config('cache', 'id_token_tmp')
+    if os.path.exists(id_token_path):
+        shutil.copy(id_token_path, id_token_tmp_path)
+        subprocess.call(f'buildtool upgrade --select-version {version}', shell=True)
+        if not os.path.exists(os.path.dirname(id_token_path)):
+            os.makedirs(os.path.dirname(id_token_path))
+        shutil.copy(id_token_tmp_path, id_token_path)
+    else:
+        subprocess.call(f'buildtool upgrade --select-version {version}', shell=True)
+    return
+
+
+def get_repository():
+    """get repository"""
+    workspace_file = os.path.join('/apollo_workspace', '.workspace.json')
+    try:
+        if not os.path.exists(workspace_file):
+            if platform.machine() == "aarch64":
+                return 'apollo-core-arm'
+            return 'apollo-core'
+        with open(workspace_file, 'r') as fr:
+            content = json.load(fr)
+            repository = content.get('repositories')[0].get('name')
+            return repository
+    except Exception as ex:
+        if platform.machine() == "aarch64":
+            return 'apollo-core-arm'
+        return 'apollo-core'

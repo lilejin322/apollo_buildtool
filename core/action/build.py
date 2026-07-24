@@ -438,7 +438,10 @@ class Action(core.action.Action):
         # Early deletion of modules prevents deletion of 
         # compiled outputs that should not be deleted
         for i in targets:
-            self.clean_local_target(i)
+            try:
+                self.clean_local_target(i)
+            except:
+                pass
 
         final_args = Namespace(
             builder_args=self.builder_args, known_options=self.known_options,

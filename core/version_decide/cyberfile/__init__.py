@@ -35,14 +35,16 @@ from core.task.bazel.handler import Procedure
 
 logger = get_logger('buildtool')
 
+
 @singleton
 class MetaDataCli(object):
-    def __init__(self):
+    def __init__(self, ignore_error=False):
         self.headers = {
             "Host": "apollo.baidu.com",
             'Authorization': 'Bearer {}'.format(get_token())
         }
         self.recache = False
+        self.ignore_error = ignore_error
         self.offline_packages_filename = get_config("cache", "offline_packages_filename")
         self.offline_cyberfile_cache_filename = get_config("cache", "offline_cyberfile_cache_filename")
         self.running = False
@@ -74,15 +76,15 @@ class MetaDataCli(object):
 
             request_url_base = get_config("api", "meta_api")
             metadata_request_url = "{}?repo_name={}&arch={}&codename={}".format(
-                request_url_base, ",".join([i.name for i in self.repositories]), 
+                request_url_base, ",".join([i.name for i in self.repositories]),
                 arch, codename
             )
             meta_resp = requests.get(
                 url=metadata_request_url, headers=self.headers)
             if meta_resp.status_code != 200:
                 ErrCode.send_error(ErrCode.NetworkIoError, [
-                        "Request packages metadata failed! Status code={}".format(
-                            meta_resp.status_code)])
+                    "Request packages metadata failed! Status code={}".format(
+                        meta_resp.status_code)])
             meta_resp_json = meta_resp.json()
             # assume return {
             #     "core": {"packages": packages_content, "cyberfiles": cyberfile_content},
@@ -95,9 +97,12 @@ class MetaDataCli(object):
                 cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
                 if "packages" not in meta_resp_json[repo] or \
                         "cyberfiles" not in meta_resp_json[repo]:
-                    ErrCode.send_error(ErrCode.NetworkIoError, 
-                        ["Unauthorized access repository {}".format(repo)],
-                        ["Please use login command to access this repository"])
+                    if not self.ignore_error:
+                        ErrCode.send_error(ErrCode.NetworkIoError,
+                                           ["Unauthorized access repository {}".format(repo)],
+                                           ["Please use login command to access this repository"])
+                    else:
+                        exit(0)
 
                 if not self.recache:
                     if not os.path.exists(packages_path) or not os.path.exists(packages_path):
@@ -108,7 +113,7 @@ class MetaDataCli(object):
                         with open(cyberfiles_path, "r") as f:
                             cached_cyberfiles = f.read()
                         if cached_packages != meta_resp_json[repo]["packages"] or \
-                            cached_cyberfiles != meta_resp_json[repo]["cyberfiles"]:
+                                cached_cyberfiles != meta_resp_json[repo]["cyberfiles"]:
                             self.recache = True
 
                 with open(packages_path, "w+") as f:
@@ -120,11 +125,11 @@ class MetaDataCli(object):
             for repo in self.repositories:
                 prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), repo.name)
                 packages_path = os.path.join(prefix, self.offline_packages_filename)
-                cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename) 
+                cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
 
                 if not os.path.exists(packages_path) or not os.path.exists(cyberfiles_path):
                     ErrCode.send_error(ErrCode.FileIoErr,
-                            ["please use offline mode after initialize metadata"])
+                                       ["please use offline mode after initialize metadata"])
 
         for repo in self.repositories:
             self.raw_metadata_pool[repo.name] = dict()
@@ -135,7 +140,7 @@ class MetaDataCli(object):
 
             prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), repo.name)
             packages_path = os.path.join(prefix, self.offline_packages_filename)
-            cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename) 
+            cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
             with open(packages_path, "r") as f:
                 raw_metadatas = f.read()
 
@@ -163,10 +168,10 @@ class MetaDataCli(object):
                 self.raw_cyberfile_path_pool[repo.name][name] = [
                     name for i in self.raw_metadata_pool[repo.name][name]
                 ]
-            
+
             self._register_local_package(repo)
             local_package_in_repo = []
-            for _, name in enumerate(self.raw_metadata_pool[repo.name]): 
+            for _, name in enumerate(self.raw_metadata_pool[repo.name]):
                 # parse version
                 version_str = [i["Version"].strip() for i in self.raw_metadata_pool[repo.name][name]]
                 versions = [parse_version(i["Version"].strip()) for i in self.raw_metadata_pool[repo.name][name]]
@@ -177,7 +182,7 @@ class MetaDataCli(object):
                     local_package_in_repo.append(name)
                     version_str.append(self.local_package_pool[name]["version"].strip())
                     versions.append(parse_version(self.local_package_pool[name]["version"].strip()))
-                
+
                 version_dict = {}
                 for i in range(len(versions)):
                     version_dict[versions[i]] = version_str[i]
@@ -196,7 +201,7 @@ class MetaDataCli(object):
         if not os.path.exists(package_meta_path):
             return
         for pkg in os.listdir(package_meta_path):
-            cyberfile = os.path.join(package_meta_path, pkg, "cyberfile.xml") 
+            cyberfile = os.path.join(package_meta_path, pkg, "cyberfile.xml")
             if not os.path.exists(cyberfile):
                 continue
             pkg = self.change_package_name(pkg)
@@ -215,9 +220,9 @@ class MetaDataCli(object):
                 except Exception as ex:
                     logger.warning(f"Parse meta of {pkg} failed: {str(ex)}")
                     continue
-                if pkg_version != "local": 
+                if pkg_version != "local":
                     self.local_package_pool[pkg] = {
-                        "version": pkg_version, 
+                        "version": pkg_version,
                         "repository": ns_location,
                         "cyberfile": ET.tostring(root, encoding="utf-8").decode("utf-8")
                     }
@@ -243,19 +248,19 @@ class MetaDataCli(object):
         for i in range(len(versions)):
             version_dict[versions[i]] = version_str[i]
         versions.sort()
-        
+
         return [Version.parse(version_dict[i]) for i in versions][-1].__str__()
 
     def _cached_all_cyberfile(self, ns, local_package):
         logger.info("update repo {}".format(ns))
         prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), ns)
-        cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename) 
+        cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
         if not os.path.exists(cyberfiles_path):
             ErrCode.send_error(
                 ErrCode.FileIoErr,
                 ["Internal error: can not find the cached cyberfile metadata"],
             )
-        
+
         root = ET.parse(cyberfiles_path)
         elems = root.iterfind("package")
         for elem in elems:
@@ -279,7 +284,7 @@ class MetaDataCli(object):
 
             merge_content = remote_cyberfile_content + "\n" + local_cyberfile_content
             self.cyberfile_source[ns][name] = "<root>\n" + merge_content + "\n</root>"
-        
+
         logger.info("update complete")
 
     def get_all_package_name(self):
@@ -289,15 +294,15 @@ class MetaDataCli(object):
         return list(set(pkg_names))
 
     def acquire_cyberfile(self, name: str):
-        #TODO: Compatible with cross-repository packages
+        # TODO: Compatible with cross-repository packages
         # format name to repo package name
         ret_namespace, ret_cyberfile = list(), list()
 
         name = self.change_package_name(name)
-        for ns in self.repositories:  
+        for ns in self.repositories:
             if name in self.raw_cyberfile_path_pool[ns.name]:
                 ret_namespace.append(ns.name)
-        
+
         if len(ret_namespace) == 0:
             # system package or not found
             return None, None
@@ -311,14 +316,14 @@ class MetaDataCli(object):
                     os.remove(cyberfiles_path)
 
                 ErrCode.send_error(ErrCode.FileIoError,
-                    ["Internal error: missing cyberfile of {} in repository".format(name, ns)])
+                                   ["Internal error: missing cyberfile of {} in repository".format(name, ns)])
             ret_cyberfile.append(self.cyberfile_source[ns][name])
 
         return ret_namespace, ret_cyberfile
 
     def valid_repository_check(self, name: str, version: str, repo_name: str):
         """get package repository"""
-        #TODO: Compatible with cross-repository packages
+        # TODO: Compatible with cross-repository packages
         prefix_name = self.change_package_name(name)
         ns, cyber_content = self.acquire_cyberfile(name)
         if cyber_content is None:
@@ -326,7 +331,7 @@ class MetaDataCli(object):
 
         if repo_name not in ns:
             return False
-        
+
         available_version = \
             [i.__str__() for i in self.raw_version_pool[repo_name][prefix_name]]
         if version in available_version:
@@ -334,9 +339,8 @@ class MetaDataCli(object):
         else:
             return False
 
-
     def get_available_version_format(self, name: str):
-        #TODO: Compatible with cross-repository packages
+        # TODO: Compatible with cross-repository packages
         prefix_name = self.change_package_name(name)
         ns, cyber_content = self.acquire_cyberfile(name)
         if cyber_content is None:
@@ -352,7 +356,7 @@ class MetaDataCli(object):
         look_up = {}
         for i in range(len(versions)):
             look_up[versions[i]] = version_range[i]
-        versions.sort() 
+        versions.sort()
 
         sorted_version_range = [look_up[i] for i in versions]
 
@@ -362,7 +366,7 @@ class MetaDataCli(object):
             return "={}".format(sorted_version_range[-1])
 
     def get_latest_version(self, name: str):
-        #TODO: Compatible with cross-repository packages
+        # TODO: Compatible with cross-repository packages
         prefix_name = self.change_package_name(name)
         ns, cyber_content = self.acquire_cyberfile(name)
         if cyber_content is None:
@@ -376,7 +380,7 @@ class MetaDataCli(object):
         look_up = {}
         for i in range(len(versions)):
             look_up[versions[i]] = selected_version[i]
-        versions.sort() 
+        versions.sort()
 
         sorted_selected_version = [look_up[i] for i in versions]
         return sorted_selected_version[-1]

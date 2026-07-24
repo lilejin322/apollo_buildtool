@@ -27,6 +27,7 @@ import pathlib
 import signal
 import platform
 import subprocess
+import datetime
 
 pkg_root = os.path.dirname(os.path.abspath(os.path.dirname(os.path.realpath(__file__))))
 sys.path.insert(0, pkg_root)
@@ -34,7 +35,8 @@ sys.path.insert(0, pkg_root)
 from core.entry_point import EntryPoints
 from pkg_resources import parse_version
 from core.logging import init_logger, get_logger
-from core.common import get_config
+from core import _request_pkg_version_available, update_pkg_version_available
+from core.common import get_config, get_file_mdate, upgrade_version, get_repository
 
 init_logger('buildtool')
 logger = get_logger('buildtool')
@@ -42,8 +44,10 @@ logger = get_logger('buildtool')
 from core import ErrCode
 
 # it may cause apt error
-#signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-VERSION = '9.0.0-rc1-r5'
+# signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+VERSION = '9.0.0-rc1-r10'
+USER_HOME_PATH = os.path.expanduser('~')
+VERSION_AVAILABLE_CHECK_PATH = os.path.join(USER_HOME_PATH, '.apollo', 'available_check')
 
 
 def exit_handler():
@@ -63,12 +67,14 @@ def set_handler():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+
 entry_points_path = os.path.join(pkg_root, "core", "action")
 root_path = pkg_root
 
 
 class PackageBuilder(object):
     """main class"""
+
     def __init__(self):
         set_handler()
         self.use_gpu = False
@@ -81,11 +87,50 @@ class PackageBuilder(object):
             ErrCode.send_error(
                 ErrCode.ParamErr, ["command not found! Add -h to show the help message"]
             )
-
+        self.current_commands = sys.argv
         self.command = sys.argv[1]
 
         self.entry_points = EntryPoints(entry_points_path, root_path, subparsers, self.command)
         self.parms = self.parser.parse_args()
+        if self.command != 'upgrade':
+            repository = get_repository()
+            self.check_version_available(repository)
+
+    def check_version_available(self, repository):
+        """check version available"""
+        try:
+            if (not os.path.exists(VERSION_AVAILABLE_CHECK_PATH) or
+                    datetime.datetime.now().date() != get_file_mdate(VERSION_AVAILABLE_CHECK_PATH)):
+                code, msg, data = _request_pkg_version_available(repository, VERSION)
+                if code == 500:
+                    # logger.error(f'check buildtool version available failed..., error code: {code}')
+                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH, code)
+                    return True
+                elif code == 10100:
+                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH, code)
+                    return True
+                elif code == 10101:
+                    version = data.get('pkg_version')
+                    upgrade_version(version)
+                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH, code)
+                    subprocess.run(self.current_commands)
+                    exit(0)
+                elif code == 10102:
+                    ErrCode.send_error(
+                        ErrCode.AptErr,
+                        "buildtool version has been deprecated",
+                        f'\nfirst: {msg}\nsecond: execute "buildtool upgrade"'
+                    )
+                else:
+                    # logger.error(f'check buildtool version available failed..., error code: {code}')
+                    update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH, code)
+                    return True
+            else:
+                return True
+        except Exception as ex:
+            # logger.error(ex)
+            update_pkg_version_available(VERSION_AVAILABLE_CHECK_PATH, 500)
+            return True
 
     # check_* functions below are for passing the arguments to bazel
     # that means check_* functions are for building or installing apollo modules
@@ -121,17 +166,17 @@ class PackageBuilder(object):
         actul_mem_gb = float(subprocess.check_output([cmd], shell=True))
         if actul_mem_gb < minimal_mem_gb:
             logger.warning("System memory [%dG] is lower than minium required" \
-                "[%dG]. The action could be failed." % (actul_mem_gb, minimal_mem_gb))
+                           "[%dG]. The action could be failed." % (actul_mem_gb, minimal_mem_gb))
 
     def check_esdcan_use(self):
         """check env"""
-        #TODO: confirm where can card lib and header is stored
+        # TODO: confirm where can card lib and header is stored
         apollo_root_dir = os.getenv("APOLLO_ROOT_DIR")
-        #TODO read from config
+        # TODO read from config
         if apollo_root_dir is None:
             apollo_root_dir = "/opt/apollo/neo"
         if (pathlib.Path(apollo_root_dir) / "include/ntcan.h").is_file() \
-            and (pathlib.Path(apollo_root_dir) / "lib/libntcan.so.4").is_file():
+                and (pathlib.Path(apollo_root_dir) / "lib/libntcan.so.4").is_file():
             self.use_esd = True
         else:
             self.use_esd = False
@@ -169,7 +214,7 @@ class PackageBuilder(object):
 
     def generate_env_config(self):
         """add environment variable to .bashrc"""
-        #TODO read from config
+        # TODO read from config
         logger.info("Reconfigure apollo enviroment setup")
 
         target_file = list()
@@ -208,7 +253,6 @@ class PackageBuilder(object):
         if not setup_path.exists():
             os.symlink(str(setup_path), str(link_target))
 
-
     def main(self):
         """Execute the action logic"""
         self.check_esdcan_use()
@@ -220,10 +264,12 @@ class PackageBuilder(object):
         self.check_minimal_memory_requirement()
 
         return self.entry_points.execute(self.command, self.parms, \
-            gpu=self.use_gpu, esd=self.use_esd)
+                                         gpu=self.use_gpu, esd=self.use_esd)
 
     def print_upgrade_msg(self):
         """print upgrade message"""
+        if self.command == "upgrade":
+            return
         if hasattr(self.entry_points.action_reference(self.command), "decider"):
             instance = self.entry_points.action_reference(self.command)
             meta_cli = instance.decider.metadata_cli
@@ -236,7 +282,6 @@ class PackageBuilder(object):
         return
 
 
-
 def main():
     """main function"""
     obj = PackageBuilder()
@@ -244,7 +289,7 @@ def main():
     if ret != 0 and ret is not None:
         return ret
     try:
-        obj.print_upgrade_msg()  
+        obj.print_upgrade_msg()
     except:
         pass
     logger.debug("Done, Enjoy!")
@@ -253,4 +298,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main() or 0)
-

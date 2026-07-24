@@ -17,10 +17,17 @@
 """
 config commnad
 """
+import os
 import subprocess
 
 from core.action import Action as CoreAction
+from core.package_descriptor import PackageDesc
+from core.version_decide.decider import DeciderInterface
 from core.logging import get_logger
+
+from core.task.bazel.handler.preprocess import (
+    _request_apollo_package_in_playgroud
+)
 
 logger = get_logger('buildtool')
 
@@ -41,10 +48,18 @@ class Action(CoreAction):
     """config action
     """
 
+    def __init__(self):
+        super().__init__()
+        self.parse_workspace_conf()
+        self.decider = DeciderInterface(self.repositories, ignore_error=True)
+
     @staticmethod
     def add_argument(parser):
         """add login command parser
         """
+        parser.add_argument(
+            '--select-version', type=str.lstrip,
+            help='specify the version to upgrade', required=False)
         pass
 
     def process_args(self):
@@ -55,7 +70,27 @@ class Action(CoreAction):
     def execute(self, args, **kwargs):
         """execute the config command
         """
-        subprocess.run(
-            "sudo apt update && sudo apt install --only-upgrade apollo-neo-buildtool", 
-            shell = True)
+        pkg_desc = PackageDesc()
+        pkg_desc.name = "buildtool"
+        pkg_desc.repository = self.repositories[0].name
+
+        if args.select_version:
+            pkg_desc.version = args.select_version
+            # subprocess.run(
+            #     f"sudo apt update && sudo apt install apollo-neo-buildtool={args.select_version}",
+            #     shell=True)
+        else:
+            pkg_desc.version = self.decider.metadata_cli.get_latest_version(pkg_desc.name)
+            # subprocess.run(
+            #     "sudo apt update && sudo apt install --only-upgrade apollo-neo-buildtool",
+            #     shell = True)
+        install_deb_path = _request_apollo_package_in_playgroud(pkg_desc, ignore_error=True)
+        if os.path.exists(install_deb_path):
+            if "ASCII text" not in subprocess.check_output(
+                    f"file {install_deb_path}", shell=True).decode("utf-8"):
+                try:
+                    subprocess.run(f"sudo apt install -y {install_deb_path}", shell=True)
+                except:
+                    pass
+            os.remove(install_deb_path)
         logger.info("complete")

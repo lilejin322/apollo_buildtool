@@ -51,6 +51,7 @@ class Action(core.action.Action):
         super().__init__()
         self.parse_workspace_conf()
         self.workspace = None
+        self.only_release = False
         self.decider = DeciderInterface(self.repositories)
         self.pkg_maker = PackageMaker()
 
@@ -134,21 +135,22 @@ class Action(core.action.Action):
                 continue
             package_need_to_release.append(t.name)
             targets_to_release_dict[t.name] = t
-            t_childs = graph._get_node_by_name(t.name).return_all_childs()
-            for child_index in t_childs:
-                child = t_childs[child_index]
-                if child.type != "module" or child.name.startswith("3rd"):
-                    continue
-                _, cyberfile = self.decider.metadata_cli.acquire_cyberfile(child.name)
-                # local prebuilt package or package not found in remote
-                child_local_cyberfile = os.path.join(package_prefix, child.name, "cyberfile.xml")
-                if not os.path.exists(child_local_cyberfile):
-                    logger.warning("can't find {} in local storge, skip".format(child.name))
-                    continue
-                child_version = ET.parse(child_local_cyberfile).getroot().find("version").text
-                if child_version == "local" or cyberfile is None:
-                    package_need_to_release.append(child.name)
-                    targets_to_release_dict[child.name] = child
+            if not self.only_release:
+                t_childs = graph._get_node_by_name(t.name).return_all_childs()
+                for child_index in t_childs:
+                    child = t_childs[child_index]
+                    if child.type != "module" or child.name.startswith("3rd"):
+                        continue
+                    _, cyberfile = self.decider.metadata_cli.acquire_cyberfile(child.name)
+                    # local prebuilt package or package not found in remote
+                    child_local_cyberfile = os.path.join(package_prefix, child.name, "cyberfile.xml")
+                    if not os.path.exists(child_local_cyberfile):
+                        logger.warning("can't find {} in local storge, skip".format(child.name))
+                        continue
+                    child_version = ET.parse(child_local_cyberfile).getroot().find("version").text
+                    if child_version == "local" or cyberfile is None:
+                        package_need_to_release.append(child.name)
+                        targets_to_release_dict[child.name] = child
             package_need_to_release = list(set(package_need_to_release))
         targets_to_release = [targets_to_release_dict[i] for i in targets_to_release_dict]
         
@@ -226,6 +228,11 @@ class Action(core.action.Action):
                             nargs='*', metavar='*', type=str.lstrip,
                             help="Specify the package path.")
 
+        parser.add_argument(
+            '-o', "--only-release", action='store_true', default=False,
+            help='Only releasing the specific packages'
+        )
+
     def process_args(self):
         """process runtime arguments"""
         # workspace always is cwd
@@ -235,6 +242,8 @@ class Action(core.action.Action):
         self.packages = []
         if self.args.packages is None:
             self.args.packages = []
+        if self.args.only_release:
+            self.only_release = True
         for i in self.args.packages:
             if i[0] == '/':
                 ErrCode.send_error(ErrCode.ParamErr,
