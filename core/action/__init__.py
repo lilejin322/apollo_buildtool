@@ -161,7 +161,7 @@ class Action(object):
         raise NotImplementedError
 
     def _search_package_in_workspace(self, workspace, **kwargs):
-        self._search_cyberfile(workspace, **kwargs)
+        self._search_cyberfile(workspace, **dict(kwargs, workspace = workspace))
         
     def _search_cyberfile(self, root, **kwargs):
         files = os.listdir(root)
@@ -187,6 +187,16 @@ class Action(object):
             f_desc = Path(os.path.join(root, f))
             if f_desc.is_dir() and not f_desc.is_symlink():
                 self._search_cyberfile(str(f_desc), **kwargs)
+            if f_desc.is_dir() and f_desc.is_symlink():
+                workspace = kwargs["workspace"]
+                f_suffix = os.path.relpath(str(f_desc), workspace)
+                if f_suffix.startswith("bazel") or \
+                        f_suffix.startswith("output") or \
+                        f_suffix.startswith("tools") or \
+                        f_suffix.startswith("third_party") :
+                    continue
+                else:
+                    self._search_cyberfile(str(f_desc), **kwargs)
 
     def _update_source(self):
         # logger.info("Updating remote source...")

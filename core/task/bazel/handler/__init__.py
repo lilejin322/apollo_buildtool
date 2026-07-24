@@ -599,7 +599,7 @@ def generate_system_package_content(pkg_desc: PackageDesc, deps_file: str, works
 
 def _build_wrapper_to_bazel_format(deps_file, workspace):
     """change absolute of build file to bazel accepted format"""
-    deps_file_bazel_format = deps_file.replace(workspace, "")
+    deps_file_bazel_format = deps_file.replace(workspace, "", 1)
     if deps_file_bazel_format.startswith("/"):
         deps_file_bazel_format = "/{}".format(deps_file_bazel_format)
     else:

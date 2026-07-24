@@ -153,6 +153,10 @@ class BazelBuildTask(BazelBaseTask):
             if os.path.exists(tegra_path):
                 host_link_opt += ['--host_linkopt="-L{}"'.format(tegra_path)]
                 host_link_opt += ['--linkopt="-L{}"'.format(tegra_path)]
+
+        for i in ["/usr/local/lib", "/usr/lib"]:
+            host_link_opt += ['--host_linkopt="-L{}"'.format(i)]
+            host_link_opt += ['--linkopt="-L{}"'.format(i)] 
             
         host_link_opt += ['--host_linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
         host_link_opt += ['--linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
