@@ -22,7 +22,7 @@ from core import ErrCode
 from core.boot import stop_module, run_module
 from core.logging import get_logger
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 def get_action_name():
     """get action name"""

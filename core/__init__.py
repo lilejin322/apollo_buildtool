@@ -23,7 +23,7 @@ import getpass
 import sys
 from core.logging import get_logger
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 class AptContext(object):
     """apt context"""

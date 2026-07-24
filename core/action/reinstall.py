@@ -26,7 +26,7 @@ from core import AptContext, AptStatus
 from core.version_decide.decider import DeciderInterface
 from core.logging import get_logger
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 def get_action_name():

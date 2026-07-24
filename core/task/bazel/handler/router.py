@@ -38,7 +38,7 @@ from core.task.bazel.handler.postprocess import (
     pure_binary_postprocess
 )
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 @singleton
 class Router(object):

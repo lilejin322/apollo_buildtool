@@ -35,7 +35,7 @@ from core.task.bazel.handler import (
     _is_deprecated_package
 )
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 def module_postprocess(pkg_desc: PackageDesc, workspace: str, **kwargs):
     """postprocess function for module"""

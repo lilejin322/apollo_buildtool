@@ -20,7 +20,7 @@ from core.version_decide.mixology.set_relation import SetRelation
 from core.version_decide.mixology.term import Term
 
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 _conflict = object()
 
 

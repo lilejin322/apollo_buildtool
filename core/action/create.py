@@ -28,7 +28,7 @@ from core.logging import get_logger
 from core.common import generate_template
 from core.common import name_convert_to_camel
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 TEMPLATE_COMPONENT = "component"
 TEMPLATE_PLUGIN = "plugin"
 

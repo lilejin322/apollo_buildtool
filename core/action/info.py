@@ -26,7 +26,7 @@ from core.topological_order import build_order
 from core.version_decide.decider import DeciderInterface
 from pathlib import Path
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 def get_action_name():

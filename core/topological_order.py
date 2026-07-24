@@ -25,7 +25,7 @@ from core.logging import get_logger
 from core import ErrCode
 
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 class Graph(object):

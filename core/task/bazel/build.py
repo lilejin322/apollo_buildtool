@@ -35,7 +35,7 @@ from core.task.bazel.handler import (
 from core.task.bazel.handler.router import Router
 from pathlib import Path
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 class BazelBuildTask(BazelBaseTask):

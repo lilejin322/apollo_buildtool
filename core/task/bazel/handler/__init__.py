@@ -28,7 +28,7 @@ from core.package_descriptor import PackageDesc
 from core.package_identification.identifier import PackageIdentification
 from core.package_identification.identifier import singleton
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 delimiter = "#######################################APOLLO#######################################"
 

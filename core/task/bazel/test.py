@@ -27,7 +27,7 @@ from core.common import get_config
 from core.task.bazel.handler import Procedure
 from pathlib import Path
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 class BazelTestTask(BazelBaseTask):

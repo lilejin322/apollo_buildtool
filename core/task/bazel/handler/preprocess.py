@@ -45,7 +45,7 @@ from core.task.bazel.handler import (
 from core.package_identification.identifier import PackageIdentification
 from core import AptContext, AptStatus
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 installed = 0
 reinstall = 1

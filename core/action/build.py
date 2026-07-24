@@ -32,7 +32,7 @@ from core.common import get_config
 from core import ErrCode
 
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 def get_action_name():

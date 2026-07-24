@@ -32,7 +32,7 @@ from core.task.cmake import get_project_name, get_cmake_version, get_cmake_requi
 from core.package_descriptor import Status
 from core.logging import get_logger
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 # global value to save package install path
 PKG_INSTALL_PATH = dict()

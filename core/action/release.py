@@ -26,7 +26,7 @@ from core.logging import get_logger
 from core.common import get_config
 from core.pack_lib.lib.pack import PackageMaker
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 release_path = ".deb_local"
 
 def get_action_name():

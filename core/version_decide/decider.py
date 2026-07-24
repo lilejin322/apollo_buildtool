@@ -37,7 +37,7 @@ from core.package_identification.identifier import PackageIdentification
 from core.common import get_config
 from core.logging import get_logger
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 class Dependency:

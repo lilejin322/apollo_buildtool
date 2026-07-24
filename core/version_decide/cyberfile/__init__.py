@@ -29,7 +29,7 @@ from core.action import apollo_prefix
 from core.package_identification.identifier import singleton
 from core.task.bazel.handler import Procedure
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 @singleton
 class MetaDataCli(object):

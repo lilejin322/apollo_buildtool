@@ -33,7 +33,7 @@ CMAKE_COMMAND_ENVIRONMENT_VARIABLE = "CMAKE_COMMAND"
 CTEST_COMMAND_ENVIRONMENT_VARIABLE = "CTEST_COMMAND"
 """Global variable for the cached CMake version"""
 _cached_cmake_version = None
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 CMAKE_VARS = dict()
 

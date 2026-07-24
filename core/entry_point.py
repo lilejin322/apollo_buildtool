@@ -26,7 +26,7 @@ from core.common import get_root
 from core import ErrCode
 from pathlib import Path
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 class LibEntryPoints(object):
@@ -51,7 +51,7 @@ class LibEntryPoints(object):
         """
         if name not in self.instances:
             ErrCode.send_error(
-                ErrCode.ModuleIsNotInstallErr, 
+                ErrCode.ModuleIsNotInstallErr,
                 ["action lib {} not exists or is not loaded".format(name)],
                 exit=False
             )
@@ -68,7 +68,7 @@ class LibEntryPoints(object):
         """
         if name in self.instances:
             ErrCode.send_error(
-                ErrCode.ModuleIsNotInstallErr, 
+                ErrCode.ModuleIsNotInstallErr,
                 ["action lib {} have been loaded".format(name)],
                 exit=False
             )
@@ -76,7 +76,7 @@ class LibEntryPoints(object):
         files = os.listdir(self.path)
         if "{}.py".format(name) not in files:
             ErrCode.send_error(
-                ErrCode.ModuleIsNotInstallErr, 
+                ErrCode.ModuleIsNotInstallErr,
                 ["action lib {} not found".format(name)],
             )
 
@@ -85,7 +85,7 @@ class LibEntryPoints(object):
         instance = importlib.import_module("{}.{}".format(prefix, name))
         self.instances[instance.get_action_name()] = instance
         return
-        
+
     def get_entry_points(self):
         """
         get all lib entry points
@@ -121,7 +121,7 @@ class LibEntryPoints(object):
                     instance = importlib.import_module("{}.{}".format(prefix, verb))
                 except Exception as ex:
                     ErrCode.send_error(
-                        ErrCode.ModuleIsNotInstallErr, 
+                        ErrCode.ModuleIsNotInstallErr,
                         [
                             "action lib file {} format is invalid".format(verb),
                             "detail: {}".format(str(ex))
@@ -131,7 +131,7 @@ class LibEntryPoints(object):
                     continue
                 #logger.info("load action: {}".format(instance.get_action_name()))
                 self.instances[instance.get_action_name()] = instance
-        
+
 
 class EntryPoints(object):
     """action class entry point of lib"""
@@ -148,26 +148,26 @@ class EntryPoints(object):
             # only init the action which user input
             if all_lib_entry_points[verb].get_action_name() == command:
                 self.actions[verb] = self.actions[verb]()
-                
+
     def load_entry_point(self, name):
         """
         load action entry point
 
         param: name, action name
         type: str
-        """ 
+        """
         entry = self.lib_entry_points.get_entry_point(name)
         if entry is None:
             ErrCode.send_error(
-                ErrCode.ModuleIsNotInstallErr, 
+                ErrCode.ModuleIsNotInstallErr,
                 ["action {} is not loaded".format(name)]
             )
-            
+
         parser = self.subparsers.add_parser(entry.get_action_name(), \
-                help=entry.get_action_description()) 
+                help=entry.get_action_description())
         self.actions[name] = entry.Action()
         self.actions[name].add_argument(parser)
-        
+
     def execute(self, verb, args, **kwargs):
         """execute main logic of the action"""
         if verb not in self.actions:

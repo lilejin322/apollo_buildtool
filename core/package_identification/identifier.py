@@ -27,7 +27,7 @@ from core.package_descriptor import Status
 from core.package_descriptor import DependAttr 
 from core.logging import get_logger
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 def singleton(cls):

@@ -34,7 +34,7 @@ from core.package_identification.identifier import PackageIdentification
 from core.rc_generator import main as generate_apollo_rc_file
 from core.task.bazel import BAZEL_EXECUTABLE
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 def get_action_name():
     """get action name"""

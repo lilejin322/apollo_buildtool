@@ -28,46 +28,136 @@ APP = os.path.basename(sys.argv[0]).split(".")[0]
 """
 colorful logging
 """
-BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = list(range(8))
+[
+    FOREGROUND_COLOR_BLACK,
+    FOREGROUND_COLOR_RED,
+    FOREGROUND_COLOR_GREEN,
+    FOREGROUND_COLOR_YELLOW,
+    FOREGROUND_COLOR_BLUE,
+    FOREGROUND_COLOR_MAGENTA,
+    FOREGROUND_COLOR_CYAN,
+    FOREGROUND_COLOR_WHITE,
+] = [x + 30 for x in range(8)]
+FOREGROUND_COLORS = {
+    FOREGROUND_COLOR_BLACK,
+    FOREGROUND_COLOR_RED,
+    FOREGROUND_COLOR_GREEN,
+    FOREGROUND_COLOR_YELLOW,
+    FOREGROUND_COLOR_BLUE,
+    FOREGROUND_COLOR_MAGENTA,
+    FOREGROUND_COLOR_CYAN,
+    FOREGROUND_COLOR_WHITE,
+}
+[
+    BACKGROUND_COLOR_BLACK,
+    BACKGROUND_COLOR_RED,
+    BACKGROUND_COLOR_GREEN,
+    BACKGROUND_COLOR_YELLOW,
+    BACKGROUND_COLOR_BLUE,
+    BACKGROUND_COLOR_MAGENTA,
+    BACKGROUND_COLOR_CYAN,
+    BACKGROUND_COLOR_WHITE,
+] = [x + 40 for x in range(8)]
+BACKGROUND_COLORS = {
+    BACKGROUND_COLOR_BLACK,
+    BACKGROUND_COLOR_RED,
+    BACKGROUND_COLOR_GREEN,
+    BACKGROUND_COLOR_YELLOW,
+    BACKGROUND_COLOR_BLUE,
+    BACKGROUND_COLOR_MAGENTA,
+    BACKGROUND_COLOR_CYAN,
+    BACKGROUND_COLOR_WHITE,
+}
+[
+    TEXT_PROP_DEFAULT,
+    TEXT_PROP_BOLD,
+    TEXT_PROP_NOT_BOLD,
+    TEXT_PROP_UNDERSCORE,
+    TEXT_PROP_NOT_UNDERSCORE,
+    TEXT_PROP_BLINK,
+    TEXT_PROP_NOT_BLINK,
+    TEXT_PROP_INVERS,
+    TEXT_PROP_NOT_INVERS,
+] = [0, 1, 22, 4, 24, 5, 25, 7, 27]
+TEXT_PROPS = {
+    TEXT_PROP_DEFAULT,
+    TEXT_PROP_BOLD,
+    TEXT_PROP_NOT_BOLD,
+    TEXT_PROP_UNDERSCORE,
+    TEXT_PROP_NOT_UNDERSCORE,
+    TEXT_PROP_BLINK,
+    TEXT_PROP_NOT_BLINK,
+    TEXT_PROP_INVERS,
+    TEXT_PROP_NOT_INVERS,
+}
+BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = [
+    x + 30 for x in range(8)]
 RESET_SEQ = "\033[0m"
 COLOR_SEQ = "\033[1;%dm"
 BOLD_SEQ = "\033[1m"
 
-COLORS = {
-    'INFO':     GREEN,
-    'WARNING':  YELLOW,
-    'DEBUG':    BLUE,
-    'ERROR':    RED,
-    'CRITICAL': YELLOW
+LOGLEVEL_COLORS = {
+    'DEBUG':    (FOREGROUND_COLOR_BLUE, None, TEXT_PROP_DEFAULT),
+    'INFO':     (FOREGROUND_COLOR_GREEN, None, TEXT_PROP_BOLD),
+    'WARNING':  (FOREGROUND_COLOR_YELLOW, None, TEXT_PROP_BOLD),
+    'ERROR':    (FOREGROUND_COLOR_RED, None, TEXT_PROP_BOLD),
+    'CRITICAL': (FOREGROUND_COLOR_RED,
+                 BACKGROUND_COLOR_YELLOW,
+                 [TEXT_PROP_BOLD, TEXT_PROP_BLINK]),
 }
-    
+
+
+def colorize(string, fore_color=None, back_color=None, props=None):
+    """colorize the string
+    """
+    ctrls = []
+
+    if isinstance(props, int):
+        if props not in TEXT_PROPS:
+            # invalid property
+            ctrls.append(TEXT_PROP_DEFAULT)
+        else:
+            ctrls.append(props)
+    elif isinstance(props, (tuple, list)):
+        for prop in props:
+            if prop in TEXT_PROPS:
+                ctrls.append(prop)
+
+    if fore_color in FOREGROUND_COLORS:
+        ctrls.append(fore_color)
+
+    if back_color in BACKGROUND_COLORS:
+        ctrls.append(back_color)
+
+    return f'''\033[{';'.join(map(str, ctrls))}m{string}\033[0m'''
+
 
 class ColoredFormatter(logging.Formatter):
     """colored formatter for logger"""
-    def __init__(self, msg):
-        logging.Formatter.__init__(self, msg)
-        
+
+    def __init__(self, fmt, datefmt):
+        logging.Formatter.__init__(self, fmt, datefmt)
+
     def format(self, record):
         """format the log"""
         levelname = record.levelname
-        if levelname in COLORS:
-            if levelname == 'DEBUG':
-                record.levelname = COLOR_SEQ % (30 + COLORS[levelname]) + \
-                    record.msg.split('#')[0] + RESET_SEQ
-                record.msg = COLOR_SEQ % (30 + COLORS[levelname]) + \
-                    record.msg.split('#')[-1] + RESET_SEQ
-            else:
-                record.levelname = COLOR_SEQ % (30 + COLORS[levelname]) + \
-                    APP + RESET_SEQ
-                record.msg = COLOR_SEQ % (30 + COLORS[levelname]) + levelname + \
-                    " " + record.msg.split('#')[-1] + RESET_SEQ
+        if levelname in LOGLEVEL_COLORS:
+            record.name = colorize(record.name,
+                                   FOREGROUND_COLOR_BLUE,
+                                   None,
+                                   [TEXT_PROP_BOLD])
+            record.levelname = colorize(levelname, *LOGLEVEL_COLORS[levelname])
+            record.msg = colorize(record.msg, *LOGLEVEL_COLORS[levelname])
         return logging.Formatter.format(self, record)
 
 
 def init_logger(name):
     """init logger"""
     logger = logging.getLogger(name)
-    color_formatter = ColoredFormatter("[%(levelname)-18s] %(message)s")
+    color_formatter = ColoredFormatter(
+        "[%(name)s] %(asctime)s %(levelname)-8s %(message)s",
+        "%Y-%m-%d %H:%M:%S",
+    )
     console = logging.StreamHandler()
     console.setFormatter(color_formatter)
     logger.addHandler(console)
@@ -77,4 +167,3 @@ def init_logger(name):
 def get_logger(name):
     """get logger"""
     return logging.getLogger(name)
-

@@ -25,7 +25,7 @@ from core import ErrCode
 from core.logging import get_logger
 from core.common import get_config
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 release_path = ".deb_local"
 apt = shutil.which("apt")
 tar = shutil.which("tar")

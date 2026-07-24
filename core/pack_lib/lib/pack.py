@@ -56,7 +56,7 @@ bin_root = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 OPT_DIR = "/opt"
 USR_DIR = "/usr"
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 class ReleaseParms(object):
     """release parms"""

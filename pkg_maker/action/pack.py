@@ -58,7 +58,7 @@ PKG_MAKER_DIR = bin_root
 OPT_DIR = "/opt"
 USR_DIR = "/usr"
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 def get_action_name():
     """get action name"""

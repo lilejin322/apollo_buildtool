@@ -28,7 +28,7 @@ from core.common import get_example
 from pathlib import Path
 from core.task.bazel.handler import Procedure
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 def get_action_name():

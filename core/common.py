@@ -24,7 +24,7 @@ import os
 from configparser import ConfigParser
 from core.logging import get_logger
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 root = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 cwd = os.getcwd()

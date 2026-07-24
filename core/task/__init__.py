@@ -23,7 +23,7 @@ import subprocess
 from core import ErrCode
 from core.logging import get_logger
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 
 def link_header(pkg_desc, apollo_header_path):

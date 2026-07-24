@@ -35,8 +35,8 @@ from core.entry_point import EntryPoints
 from core.logging import init_logger, get_logger
 from core.common import get_config
 
-init_logger("apollo")
-logger = get_logger("apollo")
+init_logger('buildtool')
+logger = get_logger('buildtool')
 
 from core import ErrCode
 
@@ -46,14 +46,14 @@ from core import ErrCode
 
 def exit_handler():
     """exit handler"""
-    logger.info('apollo build tool exit.')
+    logger.debug('apollo build tool exit.')
 
 
 def signal_handler(sig, action):
     """signal_handler for subprocess"""
-    logger.info('Keyboard interrupt received. Stop all processes.')
+    logger.error('Keyboard interrupt received. Stop all processes.')
     os.killpg(os.getpgid(os.getpid()), signal.SIGKILL)
-    
+
 
 def set_handler():
     """set all handler"""
@@ -80,7 +80,7 @@ class PackageBuilder(object):
 
         self.command = sys.argv[1]
 
-        self.entry_points = EntryPoints(entry_points_path, root_path, subparsers, self.command)     
+        self.entry_points = EntryPoints(entry_points_path, root_path, subparsers, self.command)
         self.parms = self.parser.parse_args()
 
     # check_* functions below are for passing the arguments to bazel
@@ -91,7 +91,7 @@ class PackageBuilder(object):
         supported_archs = "x86_64 aarch64"
         if platform.machine() not in supported_archs:
             ErrCode.send_error(
-                ErrCode.ArchErr, 
+                ErrCode.ArchErr,
                 [
                     "Cpu arch {} is not support!".format(platform.machine()),
                     "Currently, we only supports running on the following CPU archs: {}".format(supported_archs)
@@ -103,7 +103,7 @@ class PackageBuilder(object):
         supported_platfrom = "Linux"
         if platform.system() != supported_platfrom:
             ErrCode.send_error(
-                ErrCode.ArchErr, 
+                ErrCode.ArchErr,
                 [
                     "Platform {} is not support".format(platform.system()),
                     "Currently, we only supports running on the following platfrom: {}".format(supported_platfrom)
@@ -145,20 +145,20 @@ class PackageBuilder(object):
                         'nvidia-smi 2>/dev/null | grep "Driver Version"', shell=True) is not None:
                 self.use_gpu = True
         if not self.use_gpu:
-            logger.info("Gpu is not available, using cpu instead")
+            logger.warn("Gpu is not available, using cpu instead")
 
     def check_in_docker_env(self):
         """check env"""
         if not (pathlib.Path("/.dockerenv")).is_file():
             ErrCode.send_error(
-                ErrCode.ArchErr, 
+                ErrCode.ArchErr,
                 ["Build outside of Apollo docker environment is not supported."]
             )
 
     def generate_env_config(self):
         """add environment variable to .bashrc"""
         #TODO read from config
-        logger.info("Reconfigure apollo enviroment setup")
+        logger.debug("Reconfigure apollo enviroment setup")
 
         target_file = list()
 
@@ -177,7 +177,7 @@ class PackageBuilder(object):
                 if user_dir.is_dir():
                     env_file = user_dir / ".bashrc"
                     target_file.append(env_file)
-        
+
         rc = "source {}/setup.sh".format(get_config("base", "apollo_root"))
 
         for env_file in target_file:
@@ -195,7 +195,7 @@ class PackageBuilder(object):
         link_target = pathlib.Path(get_config("base", "apollo_root"))
         if not setup_path.exists():
             os.symlink(str(setup_path), str(link_target))
-        
+
 
     def main(self):
         """Execute the action logic"""
@@ -210,7 +210,7 @@ class PackageBuilder(object):
         return self.entry_points.execute(self.command, self.parms, \
             gpu=self.use_gpu, esd=self.use_esd)
 
-        
+
 
 def main():
     """main function"""
@@ -218,10 +218,10 @@ def main():
     ret = obj.main()
     if ret != 0:
         return ret
-    logger.info("Done, Enjoy!")
+    logger.debug("Done, Enjoy!")
     return ret
-    
+
 
 if __name__ == "__main__":
     sys.exit(main() or 0)
-    
+

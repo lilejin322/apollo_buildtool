@@ -27,7 +27,7 @@ from core.common import get_config
 from core.logging import get_logger
 from core.task.bazel import BAZEL_EXECUTABLE
 
-logger = get_logger("apollo")
+logger = get_logger('buildtool')
 
 def get_action_name():
     """get action name"""
