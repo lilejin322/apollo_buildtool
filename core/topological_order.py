@@ -22,6 +22,7 @@ import heapq as hq
 import sys
 from core.package_descriptor import Status
 from core.package_descriptor import PackageDesc
+from core.package_identification.identifier import PackageIdentification
 from core.logging import get_logger
 from core.common import get_config
 from core import ErrCode
@@ -105,12 +106,16 @@ class Graph(object):
         # check the package is apt package or user building package
         package_meta_path = os.path.join(
             get_config("base", "apollo_root"),
-            get_config("base", "package_meta_prefix")
+            get_config("base", "package_meta_prefix"),
+            non_apollo_pkg_desc.name 
         )
-        if os.path.exists(os.path.join(
-            package_meta_path, non_apollo_pkg_desc.name)):
+        if os.path.exists(package_meta_path):
+            cyberfile = os.path.join(package_meta_path, "cyberfile.xml")
+            identifier = PackageIdentification()
+            identifier.identify_offline_package(non_apollo_pkg_desc, cyberfile)  
             non_apollo_pkg_desc.type = "module"
             non_apollo_pkg_desc.version = "local"
+            non_apollo_pkg_desc.check_real_src()
         else:
             non_apollo_pkg_desc.type = "system"
         non_apollo_pkg_desc.builder = "bazel"

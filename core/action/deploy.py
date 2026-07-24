@@ -23,6 +23,12 @@ import core
 import shutil
 from core import ErrCode
 from core.action import Context
+from distutils.dir_util import copy_tree
+from argparse import Namespace
+from core.package_descriptor import PackageDesc
+from core.topological_order import build_order
+from core.task.bazel.build import BazelBuildTask
+from core.version_decide.decider import DeciderInterface
 from core.logging import get_logger
 from core.common import get_config
 
@@ -74,7 +80,7 @@ class Action(core.action.Action):
             for f in os.listdir(release_path):
                 if f.endswith(".cyberfile"):
                     desc = PackageDesc()
-                    self.identifier.identify_deploy(desc, os.path.join(release_path, f))
+                    self.identifier.identify_offline_package(desc, os.path.join(release_path, f))
                     targets.append(desc)
                     local_file_targets_name[f.replace(".cyberfile", "")] = desc.name
             # version determine
@@ -83,26 +89,30 @@ class Action(core.action.Action):
             desc_poll = self.decider.cyberfile_source
             
             # topological order all targets
-            targets, graph = build_order(packages, targets, version_results, desc_poll)
+            targets, graph = build_order(targets, targets, version_results, desc_poll)
 
             builder = BazelBuildTask()
 
             process_package_path = os.path.join(release_path, "process_package")
             for t in targets:
-                if t.name not in [local_file_targets_name(k) for k in local_file_targets_name]:
+                t.check_real_src()
+                if t.name not in [local_file_targets_name[k] for k in local_file_targets_name]:
                     builder.run(
                         Context(
-                            args = Namespace(
+                            args=Namespace(
                                 builder_args="", known_options="", workspace="",
                                 gpu=True, dbg=False, dev=False, memories=0.75,
                                 jobs=-1, childs=graph._get_node_by_name(t.name).return_all_childs(),
                                 gpu_if_available=True, install_dep_only=False,), 
-                            pkg = t)
+                            pkg=t)
                     )
             for i in os.listdir(release_path):
                 if not i.endswith(".deb"):
                     continue
-                target_name = local_file_targets_name[i.replace(".deb", "")] 
+                install_deb_path = os.path.join(release_path, i)
+                target_name = local_file_targets_name[i.replace(".deb", "")]
+
+                logger.info("Install {}".format(target_name))
                 cmd = "{} {} {} {} 2>&1 && {} {} {} {} 2>&1".format(
                     "dpkg", "-x", install_deb_path, process_package_path,
                     "dpkg", "-e", install_deb_path, process_package_path)
@@ -191,15 +201,7 @@ class Action(core.action.Action):
             ErrCode.send_error(
                 ErrCode.FileIoErr,
                 ["proceed release file failed."])
-
-        ret = subprocess.run(" ".join(
-            ["sudo", apt, "install", "-y", "./{}/*.deb".format(release_path)]), shell=True)
-        if ret.returncode != 0:
-            ErrCode.send_error(
-                ErrCode.FileIoErr,
-                ["Install release file failed. Make sure the file is valid"])
-
-
+        
         shutil.rmtree(release_path)
 
         logger.info("Complete to deployment!")

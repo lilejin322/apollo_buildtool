@@ -120,12 +120,17 @@ class PackageIdentification(object):
             pkg_desc_list.append(pkg_desc)
         return pkg_desc_list
 
-    def identify_deploy(self, pkg_desc, cyberfile):
+    def identify_offline_package(self, pkg_desc, cyberfile):
+        """
+        Identify offline package with cyberfile
+        
+        param: pkg_desc null package descriptor
+        type: pkg_desc py:class: `core.package_descriptor.PackageDesc`
+        """
         with open(cyberfile, "r") as fd:
             xml_str = fd.read()
-            root = ET.fromstring(xml_str)
         try:
-            root = ET.fromstring(node)
+            root = ET.fromstring(xml_str)
         except Exception as ex:
             ErrCode.send_error(
                 ErrCode.FileIoErr,

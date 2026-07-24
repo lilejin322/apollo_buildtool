@@ -16,6 +16,7 @@
 ###############################################################################
 """bazel executable"""
 import sys
+import platform
 import shutil
 from core import ErrCode
 from core.action import apollo_prefix
@@ -73,4 +74,6 @@ class BazelBaseTask(object):
 
         march_config = get_config("compile", "march")
         args_str += " --copt={} --host_copt={}".format(march_config, march_config)
+        if platform.machine() == "aarch64":
+            args_str += " --copt=-fpic --host_copt=-fpic"
         return [args_str]

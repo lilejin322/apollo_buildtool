@@ -21,6 +21,7 @@ import sys
 import time
 from pathlib import Path
 from core.package_descriptor import Status
+from distutils.dir_util import copy_tree
 
 from core import ErrCode
 from core.logging import get_logger

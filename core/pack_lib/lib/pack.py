@@ -21,6 +21,7 @@ import os
 import json
 import shutil
 import subprocess
+import traceback
 import copy
 import xml.etree.ElementTree as ET
 
@@ -364,9 +365,10 @@ class DebBuilder(object):
         try:
             self.pack(parms)
         except Exception as ex:
+            traceback.print_exc()
             ErrCode.send_error(
                 ErrCode.FileIoErr,
-                ["pack failed, detail: {}".format(str(ex))]
+                ["pack {} failed, detail: {}".format(parms["name"], str(ex))]
             )
         finally:
             self.clean_up(self.package_name_ver)

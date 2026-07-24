@@ -95,10 +95,10 @@ class Action(core.action.Action):
         # topological order all targets
         _, graph = build_order(packages, targets, version_results, desc_poll)
 
-        if len(process_packages) == 0:
+        if len(packages) == 0:
             process_targets = targets
         else:
-            process_targets = [path_to_desc[i] for i in process_packages]
+            process_targets = packages
 
         package_prefix = os.path.join(get_config("base", "apollo_root"),
             get_config("base", "package_meta_prefix"))
@@ -130,12 +130,14 @@ class Action(core.action.Action):
         targets_to_release = []
         # calculate package needed to release
         for t in process_targets: 
+            if t.name.startswith("3rd"):
+                continue
             package_need_to_release.append(t.name)
             targets_to_release_dict[t.name] = t
             t_childs = graph._get_node_by_name(t.name).return_all_childs()
             for child_index in t_childs:
                 child = t_childs[child_index]
-                if child.type != "module":
+                if child.type != "module" or child.name.startswith("3rd"):
                     continue
                 _, cyberfile = self.decider.metadata_cli.acquire_cyberfile(child.name)
                 # local prebuilt package or package not found in remote
