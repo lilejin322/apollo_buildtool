@@ -206,7 +206,7 @@ class Action(core.action.Action):
             repo_name = self.repositories[0].name
             repo_version = self.repositories[0].version
             workspace_raw = {"repositories": [{"name": repo_name, "version": repo_version}]}
-            with open(".workspace.json".format(release_path), "w+") as f:
+            with open(".workspace.json", "w+") as f:
                 f.write(json.dumps(workspace_raw))
 
         release_files = "./* ./.workspace.json"

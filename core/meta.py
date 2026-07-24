@@ -61,7 +61,7 @@ def meta_executor(package_name):
     meta_build_dict = {}
     with open(pkg_meta_build, "r+") as f:
         content = f.read()
-        if not "linkopts" in content:
+        if "apollo_deps_library" in content:
             return 0
         parser = ET.parse(pkg_meta_cyberfile)
         pkg_src_path = parser.getroot().find("src_path").text

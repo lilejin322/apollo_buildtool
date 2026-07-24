@@ -24,6 +24,8 @@ from argparse import Namespace
 import core.action
 import shutil
 import subprocess
+import xml.etree.ElementTree as ET
+
 from core.action import Context
 from core.package_descriptor import PackageDesc
 from core.topological_order import build_order
@@ -377,14 +379,33 @@ class Action(core.action.Action):
                     if not os.path.exists(prerm) or not os.path.exists(postrm):
                         # legacy packages, just remove the meta
                         file_should_be_deleted = []
-                        with open(os.path.join(meta, "meta.txt"), 'r') as f:
-                            file_should_be_deleted = f.read().split("\n")
-                            file_should_be_deleted = [
-                                i.split(":")[-1] for i in file_should_be_deleted]
-                        for i in file_should_be_deleted:
-                            ele = os.path.join(get_config("base", "apollo_root"), i)
-                            if os.path.exists(ele):
-                                subprocess.run(f"rm -rf {ele}", shell=True)
+                        try:
+                            with open(os.path.join(meta, "meta.txt"), 'r') as f:
+                                file_should_be_deleted = f.read().split("\n")
+                                file_should_be_deleted = [
+                                    i.split(":")[-1] for i in file_should_be_deleted]
+                            for i in file_should_be_deleted:
+                                ele = os.path.join(get_config("base", "apollo_root"), i)
+                                if os.path.exists(ele):
+                                    subprocess.run(f"rm -rf {ele}", shell=True)
+                        except:
+                            try:
+                                cyberfile = ET.parse(os.path.join(meta, "cyberfile.xml"))
+                                src_path = cyberfile.find("src_path").text.replace("//", "")
+                                pkg_incl = os.path.join(get_config("base", "apollo_root"), "include", src_path)
+                                if os.path.exists(pkg_incl):
+                                    shutil.rmtree(pkg_incl)
+                                pkg_lib = os.path.join(get_config("base", "apollo_root"), "lib", src_path)
+                                if os.path.exists(pkg_lib):
+                                    shutil.rmtree(pkg_lib)
+                                pkg_src = os.path.join(get_config("base", "apollo_root"), "src", src_path)
+                                if os.path.exists(pkg_src):
+                                    shutil.rmtree(pkg_src)
+                                pkg_share = os.path.join(get_config("base", "apollo_root"), "share", src_path)
+                                if os.path.exists(pkg_share):
+                                    shutil.rmtree(pkg_share)
+                            except:
+                                pass
                         shutil.rmtree(meta)
                         continue
                     subprocess.run("sudo {}".format(prerm),

@@ -303,9 +303,33 @@ def _install_apollo_package_in_playgroud(pkg_desc):
                 os.path.join(get_config("base", "apollo_root"), "src"))
         include_path = ele.replace(get_config("base", "apollo_root"), 
                 os.path.join(get_config("base", "apollo_root"), "include"))
-        shutil.rmtree(src_path)
-        shutil.rmtree(include_path)
-        shutil.rmtree(meta_path)
+        if os.path.exists(src_path):
+            shutil.rmtree(src_path)
+        if os.path.exists(include_path):
+            shutil.rmtree(include_path)
+        if os.path.exists(meta_path):
+            shutil.rmtree(meta_path)
+    elif (not os.path.exists(prerm) or not os.path.exists(postrm)) and not os.path.exists(meta_file):
+        # Packages that did not compile successfully
+        if os.path.exists(meta_path):
+            try:
+                cyberfile = ET.parse(os.path.join(meta_path, "cyberfile.xml"))
+                src_path = cyberfile.find("src_path").text.replace("//", "")
+                pkg_incl = os.path.join(get_config("base", "apollo_root"), "include", src_path)
+                if os.path.exists(pkg_incl):
+                    shutil.rmtree(pkg_incl)
+                pkg_lib = os.path.join(get_config("base", "apollo_root"), "lib", src_path)
+                if os.path.exists(pkg_lib):
+                    shutil.rmtree(pkg_lib)
+                pkg_src = os.path.join(get_config("base", "apollo_root"), "src", src_path)
+                if os.path.exists(pkg_src):
+                    shutil.rmtree(pkg_src)
+                pkg_share = os.path.join(get_config("base", "apollo_root"), "share", src_path)
+                if os.path.exists(pkg_share):
+                    shutil.rmtree(pkg_share)
+                shutil.rmtree(meta_path)
+            except:
+                pass
 
     cmd = "sudo {}".format(preinst_in_package)
     p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -392,6 +416,7 @@ def _get_stored_hash_of_package(pkg_desc):
 
     package_pack_file = os.path.join(package_meta, "pack.json")
     try:
+        _ = ET.parse(os.path.join(package_meta, "cyberfile.xml"))
         pack_file_json = None
         hash_input = None
         candidates = []
@@ -419,7 +444,6 @@ def _get_stored_hash_of_package(pkg_desc):
             'find {} -name "*" -type f -print0 | sort -z | xargs -0 cat | sha1sum'.format(hash_input),
             shell=True, env=shell_env).decode("utf-8")
     except Exception as ex:
-        exit(-1)
         logger.warning("The meta of {} is damaged, force to upgrade".format(pkg_desc.name))
         return ""
 
