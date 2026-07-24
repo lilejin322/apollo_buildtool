@@ -23,7 +23,7 @@ import requests
 import hashlib
 
 from core.action import Action as CoreAction
-from core import get_config, save_token, ErrCode
+from core import get_config, save_token, ErrCode, get_user_id
 from core.logging import get_logger
 
 logger = get_logger('buildtool')
@@ -70,8 +70,9 @@ class Action(CoreAction):
         """
         self.username = args.username[0]
         self.password = args.password[0]
-        
-        login_url = get_config("api", "login")
+
+        user_id, _ = get_user_id()
+        login_url = f'{get_config("api", "login")}?user_id={user_id}'
 
         json_data = {
             "username": self.username,

@@ -26,7 +26,7 @@ import shutil
 import core.action
 from collections import OrderedDict
 from core import common
-from core import ErrCode
+from core import ErrCode, get_user_id
 from core.logging import get_logger
 
 logger = get_logger('buildtool')
@@ -142,9 +142,10 @@ class Action(core.action.Action):
         """
         get remote maps
         """
+        user_id, _ = get_user_id()
         entrypoint = common.get_config('api',
                                        'apollo_open_maps_api_entrypoint')
-        api = f'{entrypoint}/map_list'
+        api = f'{entrypoint}/map_list?user_id={user_id}'
         req = requests.get(api)
         if req.status_code != 200:
             logger.error(f'failed to get remote maps: {req.text}')
@@ -259,7 +260,8 @@ class Action(core.action.Action):
                           ignore_errors=True)
         entrypoint = common.get_config('api',
                                        'apollo_open_maps_api_entrypoint')
-        api = f'{entrypoint}/map_download_url?map_name={map_name}'
+        user_id, _ = get_user_id()
+        api = f'{entrypoint}/map_download_url?map_name={map_name}&user_id={user_id}'
         req = requests.get(api)
         if req.status_code != 200:
             logger.error(

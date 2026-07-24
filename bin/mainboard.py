@@ -45,7 +45,7 @@ from core import ErrCode
 
 # it may cause apt error
 # signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-VERSION = '9.0.0-rc1-r10'
+VERSION = '9.0.0-rc1-r11'
 USER_HOME_PATH = os.path.expanduser('~')
 VERSION_AVAILABLE_CHECK_PATH = os.path.join(USER_HOME_PATH, '.apollo', 'available_check')
 

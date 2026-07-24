@@ -340,11 +340,12 @@ def _request_hash_of_package(pkg_desc):
     token = get_token()
     arch = get_arch()
     codename = get_codename()
+    user_id, _ = get_user_id()
     headers = {"Host": "apollo.baidu.com",
                "Authorization": "Bearer {}".format(token)}
-    request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}".format(
+    request_url = "{}?repo_name={}&arch={}&codename={}&name={}&version={}&user_id={}".format(
         get_config("api", "attr_query"), pkg_desc.repository, arch, codename,
-        _get_apollo_package_full_name(pkg_desc), pkg_desc.version,
+        _get_apollo_package_full_name(pkg_desc), pkg_desc.version, user_id
     )
     if pkg_desc.version == "local" and pkg_desc.repository is None:
         raise Exception(f"package {pkg_desc.name} invalid")

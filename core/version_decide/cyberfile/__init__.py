@@ -26,7 +26,7 @@ import xml.etree.ElementTree as ET
 from functools import cmp_to_key
 from pkg_resources import parse_version
 from pathlib import Path
-from core import ErrCode, get_token, get_arch, get_codename
+from core import ErrCode, get_token, get_arch, get_codename, get_user_id
 from core.version_decide.semver import Version
 from core.common import get_config, get_logger
 from core.action import apollo_prefix
@@ -73,11 +73,12 @@ class MetaDataCli(object):
         if self.online:
             arch = get_arch()
             codename = get_codename()
+            user_id, _ = get_user_id()
 
             request_url_base = get_config("api", "meta_api")
-            metadata_request_url = "{}?repo_name={}&arch={}&codename={}".format(
+            metadata_request_url = "{}?repo_name={}&arch={}&codename={}&user_id={}".format(
                 request_url_base, ",".join([i.name for i in self.repositories]),
-                arch, codename
+                arch, codename, user_id
             )
             meta_resp = requests.get(
                 url=metadata_request_url, headers=self.headers)

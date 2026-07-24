@@ -136,12 +136,14 @@ def get_user_id():
 
 def _request_pkg_version_available(repo, version):
     """_request_pkg_version_available"""
+    user_id, _ = get_user_id()
     query_api = get_config("api", "version_available_api")
     timeout = int(get_config("setting", "request_timeout"))
     params = {
         "pkg_name": "buildtool",
         "pkg_ver": version,
         "repo_name": repo,
+        "user_id": user_id,
     }
     res = requests.get(query_api, params=params, timeout=timeout)
     if res.status_code != 200:
