@@ -359,7 +359,7 @@ def _copy_package_to_workspace(pkg_desc: PackageDesc, workspace: str, **kwargs):
             ),
             "Change the import type of this package"
         )
-    shutil.copytree(str(copy_source), str(package_workspace_path))
+    copy_tree(str(copy_source), str(package_workspace_path))
     # if not (package_workspace_path / "cyberfile.xml").exists() and \
     #     ((package_workspace_path / "cyberfile_cpu.xml").exists() and (package_workspace_path / "cyberfile_gpu.xml").exists()):
     #     if "gpu_if_available" in kwargs and kwargs["gpu_if_available"]:

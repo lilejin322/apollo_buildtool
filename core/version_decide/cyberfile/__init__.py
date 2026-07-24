@@ -220,12 +220,26 @@ class MetaDataCli(object):
                     # Set the package version number to the repository specified version 
                     # to avoid version leveling failures
                     root.find("version").text = ns_version
+                    if not (ns_version[0] >= "0" and ns_version <= "9"):
+                        ns_version = self._get_latest_version_before_merge(ns_location, "cyber")
                     cyberfile_content = ET.tostring(root, encoding="utf-8").decode("utf-8")
                     self.local_package_pool[pkg] = {
                         "version": ns_version,
                         "repository": ns_location,
                         "cyberfile": cyberfile_content
                     }
+
+    def _get_latest_version_before_merge(self, repo_name, package_name):
+        package_name = self.change_package_name(package_name)
+        version_str = [i["Version"].strip() for i in self.raw_metadata_pool[repo_name][package_name]]
+        versions = [parse_version(i["Version"].strip()) for i in self.raw_metadata_pool[repo_name][package_name]]
+
+        version_dict = {}
+        for i in range(len(versions)):
+            version_dict[versions[i]] = version_str[i]
+        versions.sort()
+        
+        return [Version.parse(version_dict[i]) for i in versions][-1].__str__()
 
     def _cached_all_cyberfile(self, ns, local_package):
         logger.info("update the local cache")

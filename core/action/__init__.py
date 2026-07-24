@@ -119,9 +119,10 @@ class Action(object):
                 self._search_cyberfile(str(f_desc), **kwargs)
 
     def _update_source(self):
-        logger.info("Updating remote source...")
-        cmd = "{} update --allow-insecure-repositories >/dev/null 2>&1".format(AptContext.executable)
-        subprocess.run(cmd, shell=True)
+        # logger.info("Updating remote source...")
+        # cmd = "{} update --allow-insecure-repositories >/dev/null 2>&1".format(AptContext.executable)
+        # subprocess.run(cmd, shell=True)
+        pass
 
     def set_args(self, args):
         """set runtime arguments"""

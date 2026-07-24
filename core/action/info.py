@@ -92,9 +92,8 @@ class Action(core.action.Action):
             self.format_remote_information(proceed_desc, self.query["name"])
             return 0
         else:
-            _, package_cyberfiles = str(
-                self.decider.metadata_cli.acquire_cyberfile(self.query["name"])
-            )
+            _, package_cyberfiles = self.decider.metadata_cli.acquire_cyberfile(self.query["name"])
+
             if package_cyberfiles == "None":
                 ErrCode.send_error(
                     ErrCode.ParamErr,
