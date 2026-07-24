@@ -53,7 +53,7 @@ class Action(core.action.Action):
             return ErrCode.AptErr
 
         sh_args = " ".join(args.files)
-        sh_args = sh_args + f" -p {args.process_name[0]}"
+        sh_args = sh_args + f" -p {args.process_name}"
 
         subprocess.run(f"bash {sampling_script} {sh_args}", shell=True)
 

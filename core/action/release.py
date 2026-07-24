@@ -18,6 +18,7 @@
 an action for releasing built packages
 """
 import os
+import json
 import subprocess
 import core
 import shutil
@@ -202,9 +203,11 @@ class Action(core.action.Action):
                 ["Can not find release output files"])
         
         if not os.path.exists(".workspace.json"):
-            ErrCode.send_error(
-                ErrCode.FileIoErr,
-                ["Can not find .workspace.json files"])
+            repo_name = self.repositories[0].name
+            repo_version = self.repositories[0].version
+            workspace_raw = {"repositories": [{"name": repo_name, "version": repo_version}]}
+            with open(".workspace.json".format(release_path), "w+") as f:
+                f.write(json.dumps(workspace_raw))
 
         release_files = "./* ./.workspace.json"
         subprocess.run(

@@ -71,7 +71,7 @@ parse_args "$@"
 CBT_FILE="profile.cbt"
 SVG_FILE="profile.svg"
 
-[[ ! `which pprof` ]] && sudo wget "https://apollo-system.cdn.bcebos.com/archive/9.0/pprof" -O /usr/bin/pprof
+[[ ! `which pprof` ]] && error "please build or install cyber first. Exiting ..." && exit 1
 
 [[ ! `which flamegraph.pl` ]] && \
     git clone --progress https://github.com/brendangregg/FlameGraph.git ~/FlameGraph && \
