@@ -72,7 +72,8 @@ class Action(CoreAction):
             description='valid subcommands',
             help='config commands',
             dest='config_command')
-        init_parser = config_subparser.add_parser('init', help='init profile')
+        init_parser = config_subparser.add_parser('init',
+                                                  help='init profile config')
         init_parser.add_argument(
             '-p', '--packages',
             nargs='+',
@@ -98,6 +99,15 @@ class Action(CoreAction):
             dest='filelist',
             nargs='+',
             help='config file list, use file list instead of all files',
+            required=False,
+        )
+        list_parser = config_subparser.add_parser(
+            'list',
+            help='list avaliable config files of packages')
+        list_parser.add_argument(
+            '-p', '--packages',
+            nargs='+',
+            help='package name list, default to all',
             required=False,
         )
 
@@ -181,11 +191,28 @@ class Action(CoreAction):
                     check=True,
                 )
 
+    def execute_config_list(self, args, **kwargs):
+        """execute config list command
+        """
+        packages = args.packages
+        if not packages:
+            packages = os.listdir(APOLLO_PACKAGE_META_PATH)
+
+        packages = list(filter(self.is_package_valid, packages))
+
+        for package in packages:
+            print(f'avaliable config files of package {package}:')
+            for config_file in self.get_package_config_filelist(package):
+                relative_config_file = remove_prefix(config_file, 'share/')
+                print(relative_config_file)
+
     def execute_config(self, args, **kwargs):
         """execute config command
         """
         if args.config_command == 'init':
             self.execute_config_init(args, **kwargs)
+        elif args.config_command == 'list':
+            self.execute_config_list(args, **kwargs)
         else:
             logger.error('unknown config subcommand %s', args.config_command)
 

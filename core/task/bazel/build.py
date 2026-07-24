@@ -19,6 +19,7 @@ build a module by using bazel
 """
 import subprocess
 import shutil
+import platform
 import os
 
 from core.common import get_config
@@ -170,8 +171,15 @@ class BazelBuildTask(BazelBaseTask):
             for d in dirs:
                 lib_paths.append(os.path.join(root, d))
         lib_paths.reverse()
+        
+        host_link_opt = []
+        if platform.machine() == "aarch64":
+            tegra_path = "/usr/lib/aarch64-linux-gnu/tegra"
+            if os.path.exists(tegra_path):
+                host_link_opt += ['--host_linkopt="-L{}"'.format(tegra_path)]
+                host_link_opt += ['--linkopt="-L{}"'.format(tegra_path)]
             
-        host_link_opt = ['--host_linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
+        host_link_opt += ['--host_linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
         host_link_opt += ['--linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
          
         bazel_args = args.builder_args + host_link_opt

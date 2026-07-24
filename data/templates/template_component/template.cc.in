@@ -15,26 +15,30 @@
  *****************************************************************************/
 
 /******************************************************************************
- * @file {{ name }}.cc
+ * @file {{ target_name }}.cc
  *****************************************************************************/
 
-#include "{{ package_path }}/{{ name }}.h"
+#include "{{ package_path }}/{{ target_name }}.h"
 
 namespace apollo {
-{% for ns in namespace %}
-namespace {{ ns }} {
+{% for ns in namespaces %}namespace {{ ns }} {
 {% endfor %}
+bool {{ class_name }}::Init() {
 
-  bool {{ class_name }}::Init() {
-    return true;
-  }
+  ACHECK(ComponentBase::GetProtoConfig(&config_))
+      << "failed to load {{ target_name }} config file "
+      << ComponentBase::ConfigFilePath();
 
-  bool {{ class_name }}::Proc(const std::shared_ptr<{{ proto_package_name }}::proto::{{ message_name }}>& msg0) {
-    return true;
-  }
+  AINFO << "Load config succedded.\n" << config_.DebugString();
 
-{% for ns in namespace|reverse %}
-} // namespace {{ ns }}
-{% endfor %}
-} // namespace apollo
+  AINFO << "Init {{ class_name }} succedded.";
+  return true;
+}
 
+bool {{ class_name }}::Proc(const std::shared_ptr<{{ channel_message_type }}>& msg0) {
+  AINFO << "message recieved.\n" << msg0->DebugString();
+  return true;
+}
+
+{% for ns in namespaces|reverse %}} // namespace {{ ns }}
+{% endfor %}} // namespace apollo

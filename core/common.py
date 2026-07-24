@@ -30,7 +30,7 @@ root = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
 cwd = os.getcwd()
 
 CONFIG = ConfigParser()
-CONFIG.read(os.path.join(root, "config/module.conf"))
+CONFIG.read(os.path.join(root, 'config/module.conf'))
 
 if os.path.isfile(os.path.expanduser('~/.apollo/buildtool/config')):
     CONFIG.read(os.path.expanduser('~/.apollo/buildtool/config'))
@@ -41,7 +41,7 @@ if os.path.isfile(os.path.join(cwd, '.buildtool.conf')):
 
 def get_setup():
     """get setup"""
-    with open(os.path.join(root, "setup.sh"), "r") as f:
+    with open(os.path.join(root, 'setup.sh'), 'r') as f:
         content = f.read()
     return content
 
@@ -54,22 +54,22 @@ def get_config(section, key):
 
 def get_template(template_name):
     """get the template content"""
-    template_wrapper = Path(root) / "data" / \
-        "templates" / "{}".format(template_name)
+    template_wrapper = Path(root) / 'data' / \
+        'templates' / '{}'.format(template_name)
     content = None
     if not template_wrapper.exists():
         return content
-    with template_wrapper.open("r") as f:
+    with template_wrapper.open('r') as f:
         content = f.read()
     return content
 
 
 def get_example():
     """get example component name and path"""
-    example_name = ["example_components", "example_lib"]
+    example_name = ['example_components', 'example_lib']
     return [
-        os.path.join(root, "data", "templates", example_name[0]),
-        os.path.join(root, "data", "templates", example_name[1])
+        os.path.join(root, 'data', 'templates', example_name[0]),
+        os.path.join(root, 'data', 'templates', example_name[1])
     ], example_name
 
 
@@ -106,14 +106,22 @@ def write_json_file(file_path, data):
 def format_namespace_for_template(namespace):
     """format_namespaces_for_template"""
     if namespace:
-        return "::".join(namespace) + "::"
+        return '::' + '::'.join(namespace)
     else:
-        return ""
+        return ''
+
+
+def formatter_list_to_proto_package(namespaces):
+    """formatter_list_to_proto_package_name"""
+    if namespaces:
+        return '.' + '.'.join(namespaces)
+    else:
+        return ''
 
 
 def name_convert_to_camel(name):
     """下划线转驼峰"""
-    return "".join(list(map(lambda x: x.title(), name.split('_'))))
+    return ''.join(list(map(lambda x: x.title(), name.split('_'))))
 
 
 def reverse_list(lst):
@@ -130,16 +138,17 @@ def generate_template(template_path, output_path, **kwargs):
     """
     generate_template
     """
-    template_wrapper = Path(root) / "data" / "templates"
+    template_wrapper = Path(root) / 'data/templates'
     env = Environment(loader=FileSystemLoader(template_wrapper),
-                      extensions=["jinja2.ext.do"]
+                      extensions=['jinja2.ext.do']
                       )
-    env.filters["format_namespace"] = format_namespace_for_template
-    env.filters["name_convert_to_camel"] = name_convert_to_camel
-    env.filters["reverse"] = reverse_list
+    env.filters['format_namespace'] = format_namespace_for_template
+    env.filters['name_convert_to_camel'] = name_convert_to_camel
+    env.filters['reverse'] = reverse_list
+    env.filters['list_to_proto_package'] = formatter_list_to_proto_package
     template = env.get_template(template_path)
     if not os.path.exists(os.path.dirname(output_path)):
         os.makedirs(os.path.dirname(output_path))
-    with open(output_path, "w+") as fn:
+    with open(output_path, 'w+') as fn:
         content = template.render(kwargs)
         fn.write(content)

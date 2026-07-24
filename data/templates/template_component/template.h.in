@@ -15,30 +15,32 @@
  *****************************************************************************/
 
 /******************************************************************************
- * @file {{ name }}.h
+ * @file {{ target_name }}.h
  *****************************************************************************/
 
 #pragma once
 #include <memory>
 
 #include "cyber/cyber.h"
-#include "{{ package_path }}/proto/{{ name }}.pb.h"
-
+#include "cyber/component/component.h"
+#include "{{ package_path }}/proto/{{ target_name }}.pb.h"
+{% for inc in includes %}#include "{{ inc }}"
+{% endfor %}
 namespace apollo {
-{% for ns in namespace %}
-namespace {{ ns }} {
+{% for ns in namespaces %}namespace {{ ns }} {
 {% endfor %}
+class {{ class_name }} final
+  : public cyber::Component<{{ channel_message_type }}> {
+ public:
+  bool Init() override;
+  bool Proc(const std::shared_ptr<{{ channel_message_type }}>& msg0) override;
 
-  class {{ class_name }} final
-    : public cyber::Component<{{ proto_package_name }}::proto::{{ message_name }}> {
-    public:
-      bool Init() override;
-      bool Proc(const std::shared_ptr<{{ proto_package_name }}::proto::{{ message_name }}>& msg0) override;
-  };
-  CYBER_REGISTER_COMPONENT({{ class_name }})
+ private:
+  apollo{{ namespaces | format_namespace }}::{{ config_message_name }} config_;
+};
 
-{% for ns in namespace|reverse %}
-} // namespace {{ ns }}
-{% endfor %}
-} // namespace apollo
+CYBER_REGISTER_COMPONENT({{ class_name }})
+
+{% for ns in namespaces|reverse %}} // namespace {{ ns }}
+{% endfor %}} // namespace apollo
 

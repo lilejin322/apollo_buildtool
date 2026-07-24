@@ -1,39 +1,45 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//tools:apollo_package.bzl", "apollo_package")
+load("//tools:apollo.bzl", "cyber_plugin_description")
+load("//tools:apollo_package.bzl", "apollo_cc_library", "apollo_package", "apollo_plugin")
+load("//tools/proto:proto.bzl", "proto_library")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
-  name = "{{name}}_files",
-  srcs = glob([
-    "dag/**",
-    "launch/**",
-  ]),
+    name = "{{target_name}}_files",
+    srcs = glob([
+        "dag/**",
+        "launch/**",
+        "conf/**",
+    ]),
 )
 
 cc_binary(
-  name = "lib{{ name }}_component.so",
-  linkshared = True,
-  linkstatic = True,
-  deps = [":{{ name }}_component"],
+    name = "lib{{ target_name }}_component.so",
+    linkshared = True,
+    linkstatic = True,
+    deps = [":{{ target_name }}_component"],
 )
 
 cc_library(
-  name = "{{ name }}_component",
-  srcs = [
-    "{{ name }}.cc",
-  ],
-  hdrs = [
-    "{{ name }}.h",
-  ],
-  alwayslink = True,
-  linkstatic = True,
-  deps = [
-    "//cyber",
-    "{{ package_path }}/proto:{{ name }}_cc_proto",
-  ]
+    name = "{{ target_name }}_component",
+    srcs = [
+        "{{ target_name }}.cc",
+    ],
+    hdrs = [
+        "{{ target_name }}.h",
+    ],
+    linkstatic = True,
+    deps = [
+        "//cyber",
+        "//{{ package_path }}/proto:{{ target_name }}_proto",
+{% for dep in build_dependencies %}        "{{ dep }}",
+{% endfor %}
+    ],
+    alwayslink = True,
 )
 
 apollo_package()
+
 cpplint()

@@ -1,0 +1,6 @@
+syntax = "proto2";
+
+package apollo{{ namespaces | list_to_proto_package }};
+
+message {{ config_message_name }} {
+}

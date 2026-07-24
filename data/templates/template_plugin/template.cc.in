@@ -15,24 +15,18 @@
  *****************************************************************************/
 
 /******************************************************************************
- * @file {{ name }}.cc
+ * @file {{ target_name }}.cc
  *****************************************************************************/
 
 #include <memory>
-#include "{{ package_path }}/{{ name }}.h"
+#include "{{ package_path }}/{{ target_name }}.h"
 
 namespace apollo {
-
-{% for ns in namespace %}
-namespace {{ ns }} {
+{% for ns in namespaces %}namespace {{ ns }} {
 {% endfor %}
+bool {{ class_name }}::Init() {
+  return true;
+}
 
-    bool {{ class_name }}::Init() {
-
-      return true;
-    }
-
-{% for ns in namespace|reverse %}
-} // namespace {{ ns }}
-{% endfor %}
-}  // namespace apollo
+{% for ns in namespaces|reverse %}} // namespace {{ ns }}
+{% endfor %}} // namespace apollo

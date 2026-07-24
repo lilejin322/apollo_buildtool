@@ -1,11 +1,13 @@
 module_config {
-  module_library : "{{ package_path }}/lib{{ name }}_component.so"
+  module_library : "{{ package_path }}/lib{{ target_name }}_component.so"
   components {
     class_name : "{{ class_name }}"
     config {
-      name : "{{ class_name }}"
+      name : "{{ target_name }}"
+      config_file_path: "{{ package_path }}/conf/default_conf.pb.txt"
+      flag_file_path: "{{ package_path }}/conf/{{ target_name }}.conf"
       readers {
-        channel: "/apollo/{{ channel }}"
+        channel: "{{ channel_name }}"
       }
     }
   }

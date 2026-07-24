@@ -15,27 +15,24 @@
  *****************************************************************************/
 
 /******************************************************************************
- * @file {{ name }}.h
+ * @file {{ target_name }}.h
  *****************************************************************************/
 
 #pragma once
 
 #include <memory>
 #include "cyber/plugin_manager/plugin_manager.h"
-
+{% for inc in includes %}#include "{{ inc }}"
+{% endfor %}
 namespace apollo {
-{% for ns in namespace %}
-namespace {{ ns }} {
+{% for ns in namespaces %}namespace {{ ns }} {
 {% endfor %}
+class {{ class_name }} : public {{ base_class_name }} {
+ public:
+  bool Init();
+};
 
-    class {{ class_name }} : public {{ base_class}} {
-        public:
-            bool Init() override;
-    };
+CYBER_PLUGIN_MANAGER_REGISTER_PLUGIN(apollo{{ namespaces|format_namespace }}::{{ class_name }}, {{ base_class_name }})
 
-    CYBER_PLUGIN_MANAGER_REGISTER_PLUGIN(apollo::{{ namespace|format_namespace }}{{ class_name }}, {{ base_class }})
-
-{% for ns in namespace|reverse %}
-} // namespace {{ ns }}
-{% endfor %}
-}  // namespace apollo
+{% for ns in namespaces|reverse %}} // namespace {{ ns }}
+{% endfor %}} // namespace apollo

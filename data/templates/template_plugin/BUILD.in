@@ -1,40 +1,35 @@
-load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//tools:cpplint.bzl", "cpplint")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//tools:apollo.bzl", "cyber_plugin_description")
-load("//tools:apollo_package.bzl", "apollo_package")
+load("//tools:apollo_package.bzl", "apollo_cc_library", "apollo_package", "apollo_plugin")
+load("//tools/proto:proto.bzl", "proto_library")
+load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
-    name = "{{ name }}_files",
+    name = "{{ target_name }}_files",
     srcs = glob([
         "conf/**",
-    ])
+    ]),
 )
 
-cyber_plugin_description(
-    name = "plugin_{{ name }}_description",
-    description = ":plugin_{{ name }}_description.xml",
-    plugin = ":lib{{ name }}.so",
-)
-
-cc_binary(
-    name = "lib{{ name }}.so",
-    linkshared = True,
-    linkstatic = True,
-    deps = [":{{ name }}_lib"],
-)
-
-cc_library(
-    name = "{{ name }}_lib",
-    srcs = ["{{ name }}.cc"],
-    hdrs = ["{{ name }}.h"],
+apollo_plugin(
+    name = "lib{{ target_name }}.so",
+    srcs = [
+        "{{ target_name }}.cc",
+    ],
+    hdrs = [
+        "{{ target_name }}.h",
+    ],
+    description = ":plugin_{{ target_name }}_description.xml",
     deps = [
         "//cyber",
+        "//{{ package_path }}/proto:{{ target_name }}_proto",
+{% for dep in build_dependencies %}        "{{ dep }}",
+{% endfor %}
     ],
-    alwayslink = True,
-    linkstatic = True,
 )
 
 apollo_package()
+
 cpplint()

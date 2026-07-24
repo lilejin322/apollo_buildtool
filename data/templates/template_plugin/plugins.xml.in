@@ -1,3 +1,3 @@
-<library path="{{ package_path }}/lib{{ name }}.so">
-    <class type="apollo::{{ namespace|format_namespace }}{{ class_name }}" base_class="{{ base_class }}"></class>
+<library path="{{ package_path }}/lib{{ target_name }}.so">
+    <class type="apollo{{ namespaces|format_namespace }}::{{ class_name }}" base_class="{{ base_class_name }}"></class>
 </library>
