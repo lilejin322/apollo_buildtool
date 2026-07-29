@@ -120,6 +120,73 @@ class PackageIdentification(object):
             pkg_desc_list.append(pkg_desc)
         return pkg_desc_list
 
+    def identify_offline_package(self, pkg_desc, cyberfile):
+        """
+        Identify offline package with cyberfile
+        
+        param: pkg_desc null package descriptor
+        type: pkg_desc py:class: `core.package_descriptor.PackageDesc`
+        """
+        with open(cyberfile, "r") as fd:
+            xml_str = fd.read()
+        try:
+            root = ET.fromstring(xml_str)
+        except Exception as ex:
+            ErrCode.send_error(
+                ErrCode.FileIoErr,
+                [
+                    "File {} is not formatting!".format(str(cyberfile)),
+                    ": ".join(str(ex).split(": ")[0:])
+                ]
+            ) 
+        name = self._find_elem("name", root)
+        if name is None:
+            ErrCode.send_error(
+                ErrCode.PackageAttrErr,
+                ["name is not defined in cyberfile"],
+                exit=False
+            )
+            pkg_desc.status = Status.INVALID
+            return
+        pkg_desc.name = name
+            
+
+        version = self._find_elem("version", root)
+        if version is None:
+            ErrCode.send_error(
+                ErrCode.PackageAttrErr,
+                ["version is not defined in cyberfile"],
+                exit=False
+            )
+            pkg_desc.status = Status.INVALID
+            return
+
+        type = self._find_elem("type", root)
+        if type is None:
+            ErrCode.send_error(
+                ErrCode.PackageAttrErr,
+                ["type is not defined in cyberfile"],
+                exit=False
+            )
+            pkg_desc.status = Status.INVALID
+            return
+
+        src = self._find_elem("src_path", root)
+        if src is None and type != "third-binary":
+            ErrCode.send_error(
+                ErrCode.PackageAttrErr,
+                ["src_path is not defined in cyberfile"],
+                exit=False
+            )
+            pkg_desc.status = Status.INVALID
+            return
+
+        deps = self._find_deps(root)
+
+        pkg_desc.fulfill_info(version, type, src, deps)
+
+        pkg_desc.status = Status.VALID
+
     def identify(self, pkg_desc, node=None, ignore_mismatch=False):
         """
         Identify package with cyberfile

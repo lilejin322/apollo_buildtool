@@ -21,6 +21,7 @@ import sys
 import time
 from pathlib import Path
 from core.package_descriptor import Status
+from distutils.dir_util import copy_tree
 
 from core import ErrCode
 from core.logging import get_logger
@@ -38,7 +39,10 @@ def progressbar(it, length, prefix="", out=sys.stdout,):
     """get the progressbar output of procedure"""
     count = length
     start = time.time()
-    size = int(os.get_terminal_size().columns / 4)
+    try:
+        size = int(os.get_terminal_size().columns / 4)
+    except:
+        size = 5
     def show(j):
         if count == 0:
             return
@@ -48,13 +52,17 @@ def progressbar(it, length, prefix="", out=sys.stdout,):
         mins, sec = divmod(remaining, 60)
         time_str = f"{int(mins):02}:{sec:05.2f}"
         
-        print(f"  {prefix}[{'#'*x}{('.'*(size-x))}] {j}/{count} Est wait {time_str}", end='\r', file=out, flush=True)
+        print(f"  {prefix}[{'#'*x}{('.'*(size-x))}] {j}/{count} Est wait {time_str}",
+            end='\r', file=out, flush=True)
         
     for i, item in enumerate(it):
         yield item
         show(i + 1)
     # clear last line
-    print(" " * os.get_terminal_size().columns, end="\r")
+    try:
+        print(" " * os.get_terminal_size().columns, end="\r")
+    except:
+        pass
 
 def _is_deprecated_package(pkg_desc):
     normal_path = os.path.join(

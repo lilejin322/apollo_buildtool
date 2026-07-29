@@ -22,6 +22,7 @@ import subprocess
 import core
 import shutil
 from core import ErrCode
+from core.topological_order import build_order
 from core.package_descriptor import PackageDesc
 from core.logging import get_logger
 from core.common import get_config
@@ -58,14 +59,106 @@ class Action(core.action.Action):
         self.set_args(args)
         self.process_args()
 
+        self._search_package_in_workspace(self.workspace)
+        process_packages = []
+
+        if len(self.packages) == 0:
+            self.packages = self.targets_path
+
+        for i in range(len(self.packages)):
+            if self.packages[i] not in self.targets_path:
+                logger.warning("Package in {} is invalid: \
+                    cyberfile not found!".format(self.packages))
+                continue
+            process_packages.append(self.packages[i])
+
+        # construct targets by targets' path
+        targets = self.construct_targets_desc()
+
+        # change name base on build config
+        new_targets, path_to_desc = self.change_target_name(
+            targets, False, False, False
+        )
+
+        packages = list()
+        for i in process_packages:
+            if i not in path_to_desc:
+                logger.warning("{} is a invalid path".format(i))
+                continue
+            packages.append(path_to_desc[i])
+        
+        # version determine
+        targets = self.decider(targets)
+        version_results = self.decider.get_result()
+        desc_poll = self.decider.cyberfile_source
+        
+        # topological order all targets
+        _, graph = build_order(packages, targets, version_results, desc_poll)
+
+        if len(packages) == 0:
+            process_targets = targets
+        else:
+            process_targets = packages
+
         package_prefix = os.path.join(get_config("base", "apollo_root"),
             get_config("base", "package_meta_prefix"))
-        packages = [i for i in os.listdir(package_prefix)]
-        targets = [PackageDesc()] * len(packages)
-        for i in range(len(targets)):
-            targets[i].name = packages[i]
-        for package in packages:
-            version = None
+        # packages = [i for i in os.listdir(package_prefix)]
+        # targets = [PackageDesc()] * len(packages)
+        # for i in range(len(targets)):
+        #     targets[i].name = packages[i]
+        # for package in packages:
+        #     version = None
+        #     repo_name, cyberfile = self.decider.metadata_cli.acquire_cyberfile(package)
+        #     if cyberfile is not None:
+        #         # apollo package
+        #         for repo in self.repositories:
+        #             if repo_name == repo.name:
+        #                 version = repo.version
+        #                 break
+        #         if version is None:
+        #             ErrCode.send_error(ErrCode.PackageAttrErr,
+        #                 ["Internal error: missing repository version"])
+        #     else:
+        #         # user prebuilt package
+        #         version = self.repositories[0].version
+        if len(process_targets) == 0:
+            logger.info("No package will be proceed")
+            return
+
+        package_need_to_release = []
+        targets_to_release_dict = {}
+        targets_to_release = []
+        # calculate package needed to release
+        for t in process_targets: 
+            if t.name.startswith("3rd"):
+                continue
+            package_need_to_release.append(t.name)
+            targets_to_release_dict[t.name] = t
+            t_childs = graph._get_node_by_name(t.name).return_all_childs()
+            for child_index in t_childs:
+                child = t_childs[child_index]
+                if child.type != "module" or child.name.startswith("3rd"):
+                    continue
+                _, cyberfile = self.decider.metadata_cli.acquire_cyberfile(child.name)
+                # local prebuilt package or package not found in remote
+                if child.version == "local" or cyberfile is None:
+                    package_need_to_release.append(child.name)
+                    targets_to_release_dict[child.name] = child
+            package_need_to_release = list(set(package_need_to_release))
+        targets_to_release = [targets_to_release_dict[i] for i in targets_to_release_dict]
+        
+        # package check
+        for package in package_need_to_release: 
+            package_desc = targets_to_release_dict[package]
+            package_pack_file = os.path.join(package_prefix, package, "pack.json")
+            if not os.path.exists(package_pack_file):
+                ErrCode.send_error(
+                    ErrCode.PackageAttrErr,
+                    ["The pack file of {} not found, try rebuild this package".format(
+                        package)])
+        
+        # release
+        for package in package_need_to_release:
             repo_name, cyberfile = self.decider.metadata_cli.acquire_cyberfile(package)
             if cyberfile is not None:
                 # apollo package
@@ -79,18 +172,13 @@ class Action(core.action.Action):
             else:
                 # user prebuilt package
                 version = self.repositories[0].version
-
-            package_pack_file = os.path.join(package_prefix, package, "pack.json")
-            if not os.path.exists(package_pack_file):
-                ErrCode.send_error(
-                    ErrCode.PackageAttrErr,
-                    ["The pack file of {} not found, try rebuild this package".format(
-                        package)])
+            package_desc = targets_to_release_dict[package]
+            package_pack_file = os.path.join(package_prefix, package, "pack.json") 
             content = None
             with open(package_pack_file, "r", encoding="utf-8") as f:
                 content = f.read()
             content = content.replace("@REPLACE@", version)
-            self.pkg_maker.execute(content, os.path.join(package_prefix, package), targets)
+            self.pkg_maker.execute(content, os.path.join(package_prefix, package), targets_to_release)
 
         release_file_name = "release.tar.gz"
         logger.info("Compress the release files...")
@@ -119,8 +207,9 @@ class Action(core.action.Action):
     @staticmethod
     def add_argument(parser):
         """add parser argument"""
-        # do nothing
-        pass
+        parser.add_argument("-p", "--packages",
+                            nargs='*', metavar='*', type=str.lstrip,
+                            help="Specify the package path.")
 
     def process_args(self):
         """process runtime arguments"""
@@ -128,6 +217,18 @@ class Action(core.action.Action):
         global release_path
         self.workspace = os.getcwd()
 
+        self.packages = []
+        if self.args.packages is None:
+            self.args.packages = []
+        for i in self.args.packages:
+            if i[0] == '/':
+                ErrCode.send_error(ErrCode.ParamErr,
+                                   ["The packages parameter does not support absolute path!"])
+            package = os.path.abspath(os.path.join(self.workspace, i))
+            if not package.startswith(self.workspace):
+                ErrCode.send_error(ErrCode.PackageAttrErr,
+                                   ["Package in {} is outside of the workspace {}".format(package, self.workspace)])
+            self.packages.append(package)
+
         if os.path.exists(os.path.join(self.workspace, release_path)):
             shutil.rmtree(os.path.join(self.workspace, release_path))
-
