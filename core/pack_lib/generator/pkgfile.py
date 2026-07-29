@@ -37,7 +37,7 @@ templ_path = bin_root + "/templates/"
 def generate_control(deb_conf):
     """generate `control` file"""
     control = ""
-    with open(bin_root + "/templates/control.in", "r") as f:
+    with open(bin_root + "/templates/control.in", "r", encoding="utf-8") as f:
         control = f.read()
 
     control = control.replace("@@NAME@@", deb_conf.name)
@@ -52,7 +52,7 @@ def generate_control(deb_conf):
         dep_list.append(d_obj.name)
     control = control.replace("@@DEPENDS@@", ", ".join(dep_list))
 
-    with open(W_DIR + deb_conf.name_ver + "/DEBIAN/control", "w") as cf:
+    with open(W_DIR + deb_conf.name_ver + "/DEBIAN/control", "w", encoding="utf-8") as cf:
         cf.write(control)
 
 
@@ -66,7 +66,7 @@ def generate_postinst(deb_conf):
     extend_ops = "\n".join(deb_conf.postinst_extend_ops)
 
     postinst = ""
-    with open(bin_root + "/templates/postinst.in", "r") as f:
+    with open(bin_root + "/templates/postinst.in", "r", encoding="utf-8") as f:
         postinst = f.read()
 
     postinst = postinst.replace("@@APOLLO_PATH@@", APOLLO_PATH)

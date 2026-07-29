@@ -72,7 +72,7 @@ class PackageBuilder(object):
         self.use_gpu = False
         self.parser = argparse.ArgumentParser(description='build tools of apollo')
         self.parser.add_argument(
-            '-v', '--version', action='version', version='9.0.0-alpha2-r1')
+            '-v', '--version', action='version', version='9.0.0-alpha3-r3')
         subparsers = self.parser.add_subparsers(help='sub-command')
 
         if len(sys.argv) <= 1:
@@ -184,9 +184,9 @@ class PackageBuilder(object):
 
         for env_file in target_file:
             content = None
-            with env_file.open("r") as f:
+            with env_file.open("r", encoding="utf-8") as f:
                 content = f.read()
-            env_file_io = env_file.open("a+")
+            env_file_io = env_file.open("a+", encoding="utf-8")
             if content == "":
                 env_file_io.write("#! /bin/bash\n")
             if rc not in content:

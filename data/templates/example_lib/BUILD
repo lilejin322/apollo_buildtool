@@ -1,54 +1,13 @@
-load("//tools/install:install.bzl", "install", "install_src_files")
-load("@rules_cc//cc:defs.bzl", "cc_test", "cc_binary", "cc_library")
+load("//tools:apollo_package.bzl", "apollo_cc_library", "apollo_package")
+load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
 
-install(
-    name = "install",
-    library_dest = "example-lib/lib",
-    library_strip_prefix = ["src"],
-    targets = [
-        ":libexternal_lib.so",
-    ],
-    deps = [
-        ":cyberfile",
-        ":external_build"
-    ]
-)
-
-install(
-    name = "cyberfile",
-    data = [":cyberfile.xml"],
-    data_dest = "example-lib"
-)
-
-install(
-    name = "external_build",
-    data = [":example-lib.BUILD"],
-    data_dest = "example-lib"
-)
-
-install_src_files(
-    name = "headers",
-    src_dir = ["include"],
-    dest = "example-lib/include",
-    filter = "*.h",
-)
-
-install_src_files(
-    name = "install_src",
-    src_dir = ["."],
-    dest = "example-lib/src",
-    filter = "*",
-    deps = [
-        ":headers"
-    ]
-)
-
-cc_binary(
-    name = "libexternal_lib.so",
-    srcs = ["//example_lib/include:external_lib.h", "//example_lib/src:external_lib.cc"],
+apollo_cc_library(
+    name = "external_lib",
+    srcs = ["external_lib.cc"],
+    hdrs = ["external_lib.h"],
     deps = ["//cyber"],
-    linkstatic = True,
-    linkshared = True,
 )
+
+apollo_package()

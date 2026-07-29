@@ -48,7 +48,8 @@ class Action(core.action.Action):
     """test action class"""
     def __init__(self):
         super().__init__()
-        self.decider = DeciderInterface()
+        self.parse_workspace_conf()
+        self.decider = DeciderInterface(self.repositories)
         self.init_tester_and_builder()
         self.args = None
         self.identifier = PackageIdentification()

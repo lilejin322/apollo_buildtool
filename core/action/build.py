@@ -49,7 +49,8 @@ class Action(core.action.Action):
     """build action class"""
     def __init__(self):
         super().__init__()
-        self.decider = DeciderInterface()
+        self.parse_workspace_conf()
+        self.decider = DeciderInterface(self.repositories)
         self.init_builder()
         self.args = None
         self.procedure = Procedure()
@@ -109,6 +110,14 @@ class Action(core.action.Action):
         parser.add_argument(
             '-m', '--memories', type=float, default=0.75,
             help='Specifies the percentage of memory used by compilation'
+        )
+        parser.add_argument(
+            '--ci-force-gpu', action='store_true', default=False,
+            help='Force using gpu mode to build(ci only)'
+        )
+        parser.add_argument(    
+            '--install_dep_only', action="store_true", default=False,
+            help="Specifies only install depends"
         )
 
     def process_args(self):
@@ -174,6 +183,9 @@ class Action(core.action.Action):
         self.use_gpu = kwargs["gpu"]
         self.use_esd = kwargs["esd"]
         self.set_args(args)
+        if self.args.ci_force_gpu:
+            self.use_gpu = True
+            self.args.gpu = True
         self.process_args()
 
         gpu_if_available = False
@@ -296,7 +308,8 @@ class Action(core.action.Action):
                         memories=args.memories,
                         jobs=args.jobs,
                         childs=graph._get_node_by_name(target.name).return_all_childs(),
-                        gpu_if_available=gpu_if_available
+                        gpu_if_available=gpu_if_available,
+                        install_dep_only=self.args.install_dep_only
                     ), 
                     pkg = target
                 )

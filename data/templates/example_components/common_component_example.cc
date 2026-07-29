@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2023 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,20 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#pragma once
-#include <memory>
+#include "example_components/common_component_example.h"
 
-#include "cyber/class_loader/class_loader.h"
-#include "cyber/component/timer_component.h"
-#include "cyber/component/component.h"
-#include "example_components/proto/examples.pb.h"
+namespace apollo {
+namespace example {
 
-class TimerCommonComponentSample : public apollo::cyber::TimerComponent {
-    public:
-        bool Init() override;
-        bool Proc() override;
-    private:
-        std::shared_ptr<apollo::cyber::Writer<example::proto::Driver>> driver_writer_ = nullptr;
-        std::shared_ptr<apollo::cyber::Writer<example::proto::Driver>> second_driver_writer_ = nullptr;
-};
-CYBER_REGISTER_COMPONENT(TimerCommonComponentSample)
+  bool CommonComponentSample::Init() {
+    AINFO << "Commontest component init";
+    apollo::example_lib::external_func_hello();
+    apollo::example_lib::external_func_bye();
+    return true;
+  }
+
+  bool CommonComponentSample::Proc(const std::shared_ptr<example::proto::Driver>& msg0,
+                                    const std::shared_ptr<example::proto::Driver>& msg1) {
+    AINFO << "Start common component Proc [" << msg0->msg_id() << "] ["
+        << msg1->msg_id() << "]";
+    return true;
+  }
+
+} // namespace example
+} // namespace apollo
+

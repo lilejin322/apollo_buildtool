@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2023 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#include "example_components/src/timer_common_component_example.h"
+#include "example_components/timer_common_component_example.h"
 
-bool TimerCommonComponentSample::Init() {
+namespace apollo{
+namespace example{
+
+  bool TimerCommonComponentSample::Init() {
     using apollo::cyber::ComponentBase;
     using example::proto::Driver;
     AINFO << "Commontest component init";
     driver_writer_ = ComponentBase::node_->CreateWriter<Driver>("/apollo/channel_example/driver_test");
     second_driver_writer_ = ComponentBase::node_->CreateWriter<Driver>("/apollo/channel_example/driver_test2");
     return true;
-}
+  }
 
-bool TimerCommonComponentSample::Proc() {
+  bool TimerCommonComponentSample::Proc() {
     static int i = 0;
     auto out_msg = std::make_shared<example::proto::Driver>();
     out_msg->set_msg_id(i++);
@@ -33,4 +36,9 @@ bool TimerCommonComponentSample::Proc() {
     AINFO << "timer_component_example: Write same drivermsg to mutliple channel->"
             << out_msg->ShortDebugString();
     return true;
-}
+  }
+
+} //namespace example
+} //namespace apollo
+
+

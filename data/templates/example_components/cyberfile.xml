@@ -9,11 +9,8 @@
   <src_path>//example_components</src_path>
   <license>BSD</license>
   <author>Apollo</author>
-  <depend type="binary" repo_name="cyber">cyber-dev</depend>
-  <depend>bazel-extend-tools-dev</depend>
-  <depend lib_names="protobuf" repo_name="com_google_protobuf">3rd-protobuf-dev</depend>
-  <depend repo_names="example-lib">example-lib-dev</depend>
-
-  <depend expose="False" condition="gpu">3rd-gpus-dev</depend>
-  <builder>bazel</builder>
+  <depend type="binary" repo_name="cyber">cyber</depend>
+  <depend lib_names="protobuf" repo_name="com_google_protobuf">3rd-protobuf</depend>
+  <depend repo_names="example-lib">example-lib</depend>
+  <depend expose="False" condition="gpu">3rd-gpus</depend>
 </package>

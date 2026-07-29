@@ -37,7 +37,7 @@ templ_path = bin_root + "/templates/"
 def generate_cyberfile(config):
     """create `cyberfile.xml` file"""
     cyberfile = ""
-    with open(templ_path + "cyberfile.xml.in", "r") as f:
+    with open(templ_path + "cyberfile.xml.in", "r", encoding="utf-8") as f:
         cyberfile = f.read()
 
     cyberfile = cyberfile.replace("@@NAME@@", config.name)
@@ -62,5 +62,5 @@ def generate_cyberfile(config):
     if '' != cyberfile_dir and not os.path.exists(cyberfile_dir):
         os.makedirs(cyberfile_dir)
 
-    with open(cyberfile_dir + "/cyberfile.xml", "w") as cf:
+    with open(cyberfile_dir + "/cyberfile.xml", "w", encoding="utf-8") as cf:
         cf.write(cyberfile)

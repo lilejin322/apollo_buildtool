@@ -22,6 +22,7 @@ import json
 import shutil
 import subprocess
 import copy
+import xml.etree.ElementTree as ET
 
 import core.action
 from pathlib import Path
@@ -46,6 +47,7 @@ CODE = "neo"
 PKG_NAME_PREFIX = "apollo-" + CODE
 APOLLO_OUT = get_config("base", "apollo_package_path") + "/"
 APOLLO_PATH = get_config("base", "apollo_root") + "/"
+APOLLO_SRC = os.path.join(APOLLO_PATH, get_config("base", "source_path_prefix"))
 W_DIR = os.path.join(APOLLO_OUT, "dpkg")
 
 OUTPUT_DIR="/apollo/output"
@@ -88,6 +90,7 @@ class PackageMaker(object):
         self.deb_maker = DebBuilder()
         self._create_shortcut()
         self.deb_local = Path(os.path.join(cwd, ".deb_local"))
+        self.version_limited = False
 
     def _parse_description_file(self, content):
         try:
@@ -103,6 +106,8 @@ class PackageMaker(object):
     def execute(self, content, src_path, targets, **kwargs):
         """main logic of action"""
 
+        # 9.0.0-alpha3: only release whole workspace with specified version
+        self.version_limited = True
         if not self.deb_local.exists():
             os.makedirs(str(self.deb_local))
         if not self.deb_local.is_dir():
@@ -118,14 +123,19 @@ class PackageMaker(object):
 
         exchange_deps = self._resolve_release_parms(pkg_desc, targets)
         for i in range(len(self.parms.deps)):
+            version_declaration = False
             if "(" in self.parms.deps[i] and ")" in self.parms.deps[i]: 
+                version_declaration = True
                 name = self.parms.deps[i][: str(self.parms.deps[i]).index("(")] 
             else:
                 name = self.parms.deps[i]
             if name in exchange_deps:
-                self.parms.deps[i] = self.parms.deps[i].replace(
-                    name, exchange_deps[name]
-                )
+                if self.version_limited and not version_declaration:
+                    self.parms.deps[i] = self.parms.deps[i].replace(
+                        name, exchange_deps[name])
+                else:
+                    self.parms.deps[i] = self.parms.deps[i].replace(
+                        name, "{}(={})".format(exchange_deps[name], self.parms.vec))
 
         os.chdir(W_DIR)
         self.deb_maker.build(self.parms.deserialize())
@@ -282,7 +292,8 @@ class PackageMaker(object):
         
         for dep in deps:
             full_name = dep if apollo_prefix in dep else "{}{}".format(apollo_prefix, dep)
-            if metacli.acquire_cyberfile(dep) is not None:
+            _, cyberfile = metacli.acquire_cyberfile(dep)
+            if cyberfile is not None:
                 exchange_deps[dep] = full_name
             else:
                 if dep in [i.name for i in targets]:
@@ -451,7 +462,7 @@ class DebBuilder(object):
 
         des_prefix = "packages/" + deb_conf.module_name + "/" + deb_conf.ver
 
-        cyberfile = None
+        cyberfiles = []
 
         for d in deb_conf.data:
             src = d["src"] if "src" in d else None
@@ -496,11 +507,21 @@ class DebBuilder(object):
                 os.chdir(cwd)
             
             if os.path.exists(os.path.join(des, "cyberfile.xml")):
-                cyberfile = Path(os.path.join(des, "cyberfile.xml"))
+                cyberfiles.append(os.path.join(des, "cyberfile.xml"))
 
         # generate_cyberfile(deb_conf)
-        if cyberfile is None:
-            raise DebMakerError("Can't find cyberfile in package {}".format(deb_conf.name)) 
-        shell_cmd("sed -i 's/<version>local/<version>{}/' {}".format(deb_conf.ver, cyberfile))
-
-        return cyberfile
+        if len(cyberfiles) == 0:
+            raise DebMakerError("Can't find cyberfile in package {}".format(deb_conf.name))
+        ret = None
+        for f in cyberfiles:
+            cyberfile = ET.parse(f)
+            root = cyberfile.getroot()
+            if APOLLO_SRC not in f:
+                for version in root.findall("version"):
+                    version.text = deb_conf.ver
+                ret = f
+            cyberfile.write(f, encoding='utf-8')
+        if f is None:
+            raise DebMakerError(
+                "Can't find cyberfile on metapath of package {}".format(deb_conf.name))
+        return ret

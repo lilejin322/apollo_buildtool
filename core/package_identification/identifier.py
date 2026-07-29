@@ -24,7 +24,7 @@ from pathlib import Path
 from core.package_descriptor import PackageDesc
 from core import ErrCode
 from core.package_descriptor import Status
-from core.package_descriptor import DependAttr 
+from core.package_descriptor import DependAttr
 from core.logging import get_logger
 
 logger = get_logger('buildtool')
@@ -39,12 +39,14 @@ def singleton(cls):
         if cls not in _instance:
             _instance[cls] = cls(**kwargs)
         return _instance[cls]
+
     return inner
 
 
 @singleton
 class PackageIdentification(object):
     """package identification"""
+
     def __init__(self):
         self.targets = list()
         self.set_target()
@@ -55,13 +57,13 @@ class PackageIdentification(object):
         for elem in root.iterfind(attr):
             ret = elem.text
         return ret
-    
+
     def _format_version(self, attr):
         format_version = ""
         if "version_eq" in attr:
             format_version = "={}".format(attr["version_eq"])
             return format_version
-        
+
         if "version_gte" in attr or "version_gt" in attr:
             if "version_gte" in attr and "version_gt" in attr:
                 ErrCode.send_error(
@@ -72,7 +74,7 @@ class PackageIdentification(object):
             elif "version_gte" in attr:
                 format_version += ">={}".format(attr["version_gte"])
             else:
-                format_version += ">{}".format(attr["version_gt"]) 
+                format_version += ">{}".format(attr["version_gt"])
 
         if "version_lte" in attr or "version_lt" in attr:
             if "version_lte" in attr and "version_lt" in attr:
@@ -84,8 +86,8 @@ class PackageIdentification(object):
             elif "version_lte" in attr:
                 format_version += " <={}".format(attr["version_lte"])
             else:
-                format_version += " <{}".format(attr["version_lt"]) 
-        
+                format_version += " <{}".format(attr["version_lt"])
+
         return format_version.strip()
 
     def _find_deps(self, root):
@@ -127,7 +129,7 @@ class PackageIdentification(object):
         """
         if pkg_desc.status != Status.UNINITIALIZED:
             return
-        
+
         if node is None:
             # user module, read cyberfile
             workspace = pkg_desc.workspace
@@ -137,8 +139,8 @@ class PackageIdentification(object):
                     ["module in workspace but module's path is not defined"],
                     exit=False
                 )
-                pkg_desc.status = Status.INVALID 
-                return 
+                pkg_desc.status = Status.INVALID
+                return
             cyberfile = Path(workspace) / "cyberfile.xml"
             if not cyberfile.exists():
                 ErrCode.send_error(
@@ -146,11 +148,11 @@ class PackageIdentification(object):
                     ["cyberfile.xml not exist"],
                     exit=False
                 )
-                pkg_desc.status = Status.INVALID 
+                pkg_desc.status = Status.INVALID
                 return
-            with cyberfile.open("r") as f:
-                node = f.read() 
-            # user module import_type must be src
+            with cyberfile.open("r", encoding="utf-8") as f:
+                node = f.read()
+                # user module import_type must be src
             pkg_desc.import_type = "src"
 
         root = None
@@ -175,7 +177,7 @@ class PackageIdentification(object):
                 ["name is not defined in cyberfile"],
                 exit=False
             )
-            pkg_desc.status = Status.INVALID 
+            pkg_desc.status = Status.INVALID
             return
         else:
             if pkg_desc.name is None:
@@ -197,9 +199,9 @@ class PackageIdentification(object):
                 ["version is not defined in cyberfile"],
                 exit=False
             )
-            pkg_desc.status = Status.INVALID 
+            pkg_desc.status = Status.INVALID
             return
-        
+
         type = self._find_elem("type", root)
         if type is None:
             ErrCode.send_error(
@@ -207,9 +209,9 @@ class PackageIdentification(object):
                 ["type is not defined in cyberfile"],
                 exit=False
             )
-            pkg_desc.status = Status.INVALID 
+            pkg_desc.status = Status.INVALID
             return
-        
+
         src = self._find_elem("src_path", root)
         if src is None and type != "third-binary":
             ErrCode.send_error(
@@ -219,7 +221,7 @@ class PackageIdentification(object):
             )
             pkg_desc.status = Status.INVALID
             return
-        
+
         deps = self._find_deps(root)
 
         pkg_desc.fulfill_info(version, type, src, deps)
@@ -229,17 +231,17 @@ class PackageIdentification(object):
 
         pkg_desc.check_import_type()
         if not pkg_desc.check_type_match():
-            #ErrCode.send_error(
+            # ErrCode.send_error(
             #    ErrCode.ModuleMismatchedErr,
             #    ["Type {} package cannot import as {}".format(pkg_desc.type, pkg_desc.import_type)],
             #    exit=False
-            #)
-            pkg_desc.status = Status.INVALID 
+            # )
+            pkg_desc.status = Status.INVALID
             return
-        
+
         # do not determine real_src too early, it should be changed during version determine
         # pkg_desc.check_real_src()
-            
+
         builder = self._find_elem("builder", root)
         if builder is None:
             builder = "bazel"
@@ -247,10 +249,10 @@ class PackageIdentification(object):
 
         pkg_desc.status = Status.VALID
         return
-        
+
     def set_target(self):
         """set builder target"""
-        #TODO read from config
+        # TODO read from config
         targets = ["cmake", "bazel"]
         for target in targets:
             if isinstance(target, str):

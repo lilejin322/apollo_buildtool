@@ -51,20 +51,19 @@ class Router(object):
         self.func_map = dict()
         self.func_map["preprocess"] = dict()
         self.func_map["postprocess"] = dict()
-
-        self.func_map["preprocess"]["module"] = module_preprocess 
+        self.func_map["preprocess"]["module"] = module_preprocess
         self.func_map["preprocess"]["module-wrapper"] = module_wrapper_preprocess
-        self.func_map["preprocess"]["third-binary"] = third_binary_preprocess 
+        self.func_map["preprocess"]["third-binary"] = third_binary_preprocess
         self.func_map["preprocess"]["third-wrapper"] = third_wrapper_preprocess
         self.func_map["preprocess"]["system"] = system_preprocess
         self.func_map["preprocess"]["pure-binary"] = pure_binary_preprocess
 
-        self.func_map["postprocess"]["module"] = module_postprocess 
+        self.func_map["postprocess"]["module"] = module_postprocess
         self.func_map["postprocess"]["module-wrapper"] = module_wrapper_postprocess
-        self.func_map["postprocess"]["third-binary"] = third_binary_postprocess 
+        self.func_map["postprocess"]["third-binary"] = third_binary_postprocess
         self.func_map["postprocess"]["third-wrapper"] = third_wrapper_postprocess
         self.func_map["postprocess"]["system"] = system_postprocess
-        self.func_map["postprocess"]["pure-binary"] = pure_binary_postprocess 
+        self.func_map["postprocess"]["pure-binary"] = pure_binary_postprocess
         pass
 
     def find_preprocess_func(self, pkg_desc: PackageDesc):

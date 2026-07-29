@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright 2018 The Apollo Authors. All Rights Reserved.
+ * Copyright 2023 The Apollo Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,18 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-#include "example_components/src/common_component_example.h"
+#pragma once
 
-bool CommonComponentSample::Init() {
-    AINFO << "Commontest component init";
-    external_func_hello();
-    external_func_bye();
-    return true;
-}
+#include "cyber/component/component.h"
 
-bool CommonComponentSample::Proc(const std::shared_ptr<example::proto::Driver>& msg0,
-                                    const std::shared_ptr<example::proto::Driver>& msg1) {
-    AINFO << "Start common component Proc [" << msg0->msg_id() << "] ["
-        << msg1->msg_id() << "]";
-    return true;
-}
+namespace apollo {
+namespace example_lib {
+
+void external_func_hello();
+
+void external_func_bye();
+
+} //namespace example_lib
+} //namespace apollo

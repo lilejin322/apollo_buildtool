@@ -87,7 +87,7 @@ def get_cmake_required_version(path):
     cmakelist = Path(path)
     if not cmakelist.is_file():
         return None
-    with cmakelist.open("r") as f:
+    with cmakelist.open("r", encoding="utf-8") as f:
         content = f.read()
         match_result = match.findall(content)
         if len(match_result) < 1:
@@ -169,7 +169,7 @@ def get_project_name(path):
     cmakelist = Path(path)
     if not cmakelist.is_file():
         raise RuntimeError("%s not found" % path)
-    with cmakelist.open("r") as f:
+    with cmakelist.open("r", encoding="utf-8") as f:
         content = f.read()
     match_result = match.findall(content)
     if len(match_result) < 1:
@@ -182,7 +182,7 @@ def _get_cmake_cache_lines(path):
     cmake_cache = Path(path) / 'CMakeCache.txt'
     if not cmake_cache.exists():
         return None
-    with cmake_cache.open('r') as f:
+    with cmake_cache.open('r', encoding="utf-8") as f:
         content = f.read()
     return content.splitlines()
 
@@ -209,7 +209,7 @@ def _get_cmake_lists_content(path):
     cmake_list = Path(path) / "CMakeLists.txt"
     if not cmake_list.exists():
         return ""
-    with cmake_list.open("r") as f:
+    with cmake_list.open("r", encoding="utf-8") as f:
         content = f.read()
     return content
 

@@ -1,74 +1,42 @@
-load("//tools/install:install.bzl", "install", "install_src_files")
+load("//tools:apollo_package.bzl", "apollo_cc_library", "apollo_package", "apollo_component", "apollo_cc_test")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
 
-install(
-    name = "install",
-    data = [
-        "//example_components/proto:examples_cc_proto",
+filegroup(
+    name = "conf",
+    srcs = glob([
+        "dag/*",
+        "launch/*",
+    ]),
+)
+
+apollo_component(
+    name = "libcomponent_examples.so",
+    srcs = [
+        "timer_common_component_example.cc",
+        "common_component_example.cc",
     ],
-    data_dest = "example-components",
-    library_dest = "example-components/lib",
-    library_strip_prefix = ["src", "proto"],
-    targets = [
-        "//example_components/src:libcomponent_examples.so",
-            "//example_components/proto:examples_cc_proto"
+    hdrs = [
+        "timer_common_component_example.h",
+        "common_component_example.h",
     ],
     deps = [
-        ":pb_headers",
-        ":dag",
-        ":launch",
-        ":cyberfile",
-        ":external_build" 
-    ]
-)
-
-install(
-    name = "pb_headers",
-    data = [
+        "//cyber",
         "//example_components/proto:examples_cc_proto",
+        "//example_lib:external_lib",
     ],
-    data_dest = "example-components/include",
 )
 
-install(
-    name = "dag",
-    data = [":example.dag"],
-    data_dest = "example-components/dag"
-)
-
-install(
-    name = "cyberfile",
-    data = [":cyberfile.xml"],
-    data_dest = "example-components"
-)
-
-install(
-    name = "external_build",
-    data = [":example-components.BUILD"],
-    data_dest = "example-components" 
-)
-
-install(
-    name = "launch",
-    data = [":example.launch"],
-    data_dest = "example-components/launch"
-)
-
-install_src_files(
-    name = "headers",
-    src_dir = ["src"],
-    dest = "example-components/include",
-    filter = "*.h",
-)
-
-install_src_files(
-    name = "install_src",
-    src_dir = ["."],
-    dest = "example-components/src",
-    filter = "*",
+apollo_cc_test(
+    name = "message_header_test",
+    size = "small",
+    srcs = ["message_header_test.cc"],
     deps = [
-        ":headers"
-    ]
+        "//cyber",
+        "@com_google_googletest//:gtest_main",
+    ],
 )
+
+cpplint()
+apollo_package()

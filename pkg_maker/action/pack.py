@@ -162,7 +162,7 @@ class Action(core.action.Action):
     def _parse_description_file(self, file_path):
         content = None
         content_object = None
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
         try:
             content_object = json.loads(content)
@@ -275,7 +275,7 @@ class Action(core.action.Action):
 
         pkg_desc = PackageDesc()
         local_cyberfile_content = None
-        with local_cyberfile_wrapper.open("r") as f:
+        with local_cyberfile_wrapper.open("r", encoding="utf-8") as f:
             local_cyberfile_content = f.read()
         PackageIdentification().identify(pkg_desc, local_cyberfile_content)
         pkg_desc.workspace = package_source 
@@ -305,7 +305,7 @@ class Action(core.action.Action):
             output_pkg_desc = PackageDesc()
             output_cyberfile_wrapper = Path(self.output_path) / "cyberfile.xml"
             output_cyberfile_content = None
-            with output_cyberfile_wrapper.open("r") as f:
+            with output_cyberfile_wrapper.open("r", encoding="utf-8") as f:
                 output_cyberfile_content = f.read() 
             PackageIdentification().identify(output_pkg_desc, output_cyberfile_content)
             if output_pkg_desc.name != pkg_desc.name:
@@ -462,7 +462,8 @@ class Action(core.action.Action):
         
         for dep in deps:
             full_name = dep if apollo_prefix in dep else "{}{}".format(apollo_prefix, dep)
-            if metacli.acquire_cyberfile(dep) is not None:
+            _, cyberfile = metacli.acquire_cyberfile(dep)
+            if cyberfile is not None:
                 exchange_deps[dep] = full_name
             else:
                 if dep in [i.name for i in targets]:

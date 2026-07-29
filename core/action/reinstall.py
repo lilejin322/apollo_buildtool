@@ -24,7 +24,12 @@ from core.action import apollo_prefix
 from core.task.bazel.handler import Procedure
 from core import AptContext, AptStatus
 from core.version_decide.decider import DeciderInterface
+from core.package_descriptor import PackageDesc
 from core.logging import get_logger
+from core.task.bazel.handler.preprocess import (
+    _request_apollo_package_in_playgroud,
+    _install_apollo_package_in_playgroud
+)
 
 logger = get_logger('buildtool')
 
@@ -42,7 +47,8 @@ class Action(core.action.Action):
     """install action class"""
     def __init__(self):
         super().__init__()
-        self.decider = DeciderInterface()
+        self.parse_workspace_conf()
+        self.decider = DeciderInterface(self.repositories)
         self.procedure = Procedure()
 
     
@@ -51,39 +57,77 @@ class Action(core.action.Action):
         self.use_gpu = kwargs["gpu"]
         self.use_esd = kwargs["esd"]
         if AptContext.executable is None:
-            ErrCode.send_error(
-                ErrCode.AptErr,
-                ["apt is not installed"],
-                exit=False
-            )
+            ErrCode.send_error(ErrCode.AptErr,
+                ["apt is not installed"], exit=False)
             return ErrCode.AptErr
 
         if self.procedure.get_network_status():
             self._update_source()
         
         packages = list()
-        for i in args.packages:
-            name = "{}{}".format(apollo_prefix, i) if self.decider.metadata_cli.acquire_cyberfile(i) is not None else i
-            packages.append(name) 
+        apt_packages = list()
 
-        ret = subprocess.run(
-            " ".join([AptContext.executable] + AptContext.reinstall_args + packages),
-            stderr=subprocess.STDOUT, shell=True
-        )
-        if ret.returncode != 0:
-            ErrCode.send_error(
-                ErrCode.AptErr,
-                ["reinstall failed"],
-            )
-            return ret.returncode
+        for i in args.packages:
+            if "=" in i:
+                package_name = i.split("=")[0]
+            else:
+                package_name = i
+            repo_name, cyberfile = self.decider.metadata_cli.acquire_cyberfile(package_name)
+            if cyberfile is None:
+                apt_packages.append(i)
+            else:
+                packages.append((i, repo_name))
+
+        if len(apt_packages) > 0:
+            logger.info("Install apt package")
+            p = subprocess.run(
+                " ".join([AptContext.executable] + AptContext.reinstall_args + apt_packages),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            if p.returncode != 0:
+                ErrCode.send_error(ErrCode.AptErr,
+                    ["Encouter error during install apt packages, detail:"],
+                    exit=False)
+                print("\033[36mstdout\033[0m: {}".format(p.stdout.decode("utf-8")), end="")
+                print("\033[36mstderr\033[0m: {}".format(p.stderr.decode("utf-8")), end="")
+                ErrCode.send_error(ErrCode.AptErr, ["Aborting process"])
+
+        if len(packages) > 0:
+            for tpl in packages:
+                i = tpl[0]
+                repo_name = tpl[1]
+                name = None
+                version = None
+                if "=" in i:
+                    name = i.split("=")[0]
+                    version = i.split("=")[1]
+                else:
+                    name = i
+
+                logger.info("Download and install apollo package {}".format(name))
+                
+                pkg_desc = PackageDesc()
+                pkg_desc.name = i
+                pkg_desc.repository = repo_name
+
+                if version is None:
+                    for remote_repo in self.repositories:
+                        if remote_repo.name == pkg_desc.repository:
+                            version = remote_repo.version
+                            break
+                
+                if version is None:
+                    ErrCode.send_error(ErrCode.AptErr,
+                        ["Internal error: during acquiring repository of {}".format(name)])
+                
+                pkg_desc.version = version
+
+                _request_apollo_package_in_playgroud(pkg_desc)
+                _install_apollo_package_in_playgroud(pkg_desc)
 
         return 0
 
     @staticmethod
     def add_argument(parser):
         """add parser argument"""
-        parser.add_argument(
-            "packages",
-            nargs='*', type=str.lstrip, 
-            help='=Reinstall the packages' 
-        )
+        parser.add_argument("packages", nargs='*',
+            type=str.lstrip, help='=Reinstall the packages' )

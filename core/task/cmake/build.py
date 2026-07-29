@@ -143,12 +143,12 @@ class CmakeBuildTask(object):
             cmakelist = Path(pkg_desc.path) / "CMakeLists.txt"
             cmakelist_cache = pathlib.Path(build_base) / "CMakeLists.txt.cache"
             cmake_content = None
-            with cmakelist.open("r") as f:
+            with cmakelist.open("r", encoding="utf-8") as f:
                 cmake_content = list(set(f.readlines()))
                 cmake_content.sort()
             if cmakelist_cache.exists():
                 cache_content = None
-                with cmakelist_cache.open("r+") as f:
+                with cmakelist_cache.open("r+", encoding="utf-8") as f:
                     cache_content = list(set(f.readlines()))
                     cache_content.sort()
                     for i in range(len(cmake_content)):
@@ -158,11 +158,11 @@ class CmakeBuildTask(object):
                             break
                 if run_configuration:
                     cmakelist_cache.unlink()
-                    with cmakelist_cache.open("w+") as f:
+                    with cmakelist_cache.open("w+", encoding="utf-8") as f:
                         f.write("\n".join(cmake_content))
             else:
                 run_configuration = True
-                with cmakelist_cache.open("w+") as f:
+                with cmakelist_cache.open("w+", encoding="utf-8") as f:
                     f.write("\n".join(cmake_content))
                     
         if force_reconfigure:
@@ -195,7 +195,7 @@ class CmakeBuildTask(object):
 
     def _get_last_args_content(self, path):
         path = pathlib.Path(path)
-        with path.open("r") as f:
+        with path.open("r", encoding="utf-8") as f:
             content = f.readlines()
         return [r[: len(r)-1] for r in content]
 
@@ -203,7 +203,7 @@ class CmakeBuildTask(object):
         store_args = pathlib.Path(build_base) / "CMakeArgs.txt"
         if store_args.exists():
             store_args.unlink()
-        with store_args.open("w+") as f:
+        with store_args.open("w+", encoding="utf-8") as f:
             for arg in args:
                 f.write("{}\n".format(arg))
 

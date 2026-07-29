@@ -196,6 +196,8 @@ class Action(core.action.Action):
         author = args.author
         description = args.description
         namespaces = args.namespaces
+        if namespaces is None:
+            namespaces = []
 
         includes = args.includes
         if includes is None:
@@ -241,6 +243,10 @@ class Action(core.action.Action):
         if build_dependencies is None:
             build_dependencies = []
 
+        config_file_name = args.config_file_name
+        if config_file_name is None:
+            config_file_name = target_name
+
         template_vars = {
             'package_path': package_path,
             'package_name': package_name,
@@ -258,6 +264,7 @@ class Action(core.action.Action):
             'email': email,
             'author': author,
             'description': description,
+            'config_file_name': config_file_name,
         }
         return template_vars
 
@@ -324,9 +331,9 @@ class Action(core.action.Action):
     def render_component_conf_file(self, template_vars):
         """render_component_conf_file"""
         package_path = template_vars['package_path']
-        target_name = template_vars['target_name']
-        component_conf_path = Path(package_path) / 'conf/default_conf.pb.txt'
-        component_flag_path = Path(package_path) / f'conf/{target_name}.conf'
+        file_name = template_vars['config_file_name']
+        component_conf_path = Path(package_path) / f'conf/{file_name}.pb.txt'
+        component_flag_path = Path(package_path) / f'conf/{file_name}.conf'
         conf_template_path = 'template_component/conf/default_conf.pb.txt'
         flag_template_path = 'template_component/conf/flags.conf'
 
@@ -641,7 +648,8 @@ class Action(core.action.Action):
     def render_plugin_conf_file(self, template_vars):
         """render_plugin_conf_file"""
         package_path = template_vars['package_path']
-        plugin_conf_path = Path(package_path) / 'conf' / 'default_conf.pb.txt'
+        file_name = template_vars['config_file_name']
+        plugin_conf_path = Path(package_path) / 'conf' / f'{file_name}.pb.txt'
         if plugin_conf_path.exists():
             logger.info(f'{plugin_conf_path} already exist, skip...')
             return
@@ -798,5 +806,12 @@ class Action(core.action.Action):
             '--base_class_name',
             type=str.lstrip,
             help='specify the base class name of plugin',
+            required=False,
+        )
+
+        parser.add_argument(
+            '--config_file_name',
+            type=str.lstrip,
+            help='specify the config file name',
             required=False,
         )

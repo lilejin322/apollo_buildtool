@@ -29,8 +29,8 @@ from core.task.bazel import BAZEL_EXECUTABLE
 from core.package_descriptor import Status
 from core.task.bazel import BazelBaseTask
 from core.task.bazel.handler import (
-    Procedure, 
-    _package_name_to_dir, 
+    Procedure,
+    _package_name_to_dir,
     _is_deprecated_package
 )
 from core.task.bazel.handler.router import Router
@@ -41,6 +41,7 @@ logger = get_logger('buildtool')
 
 class BazelBuildTask(BazelBaseTask):
     """bazel build task"""
+
     def __init__(self):
         self.procedure = Procedure()
         self.router = Router()
@@ -52,18 +53,19 @@ class BazelBuildTask(BazelBaseTask):
         param: task context
         raise: RuntimeError
         """
-        #self.router.set_ws(context.workspace)
-        self.ws = context.args.workspace 
+        # self.router.set_ws(context.workspace)
+        self.ws = context.args.workspace
         pkg_desc = context.pkg
         args = context.args
         childs = context.args.childs
         gpu_if_available = context.args.gpu_if_available
-        
+        install_dep_only = context.args.install_dep_only
+
         logger.info("Import depends...")
         if not self.procedure.import_depends(
-            self.ws, 
-            target = (pkg_desc.type == "module" and pkg_desc.import_type == "src"),
-            childs = childs
+                self.ws,
+                target=(pkg_desc.type == "module" and pkg_desc.import_type == "src"),
+                childs=childs
         ):
             return -1
 
@@ -97,16 +99,10 @@ class BazelBuildTask(BazelBaseTask):
         if ret:
             return ret
 
-        if pkg_desc.type == "module" and pkg_desc.import_type == "src":
+        if pkg_desc.type == "module" and pkg_desc.import_type == "src" and not install_dep_only:
             ret = install_procedure()
             if ret != 0:
                 return ret
-
-        #elif pkg_desc.type == "module-wrapper" and pkg_desc.name in get_config("packages", "special_wrapper"):
-        #    logger.info("Building headers of {}".format(pkg_desc.name))
-        #    ret = self._install(args, pkg_desc)
-        #    if ret != 0:
-        #        return ret
         
         logger.info("PostProcess {}".format(pkg_desc.name))
         self.router.find_postprocess_func(pkg_desc)(pkg_desc, self.ws)
@@ -115,12 +111,12 @@ class BazelBuildTask(BazelBaseTask):
     def _get_last_args(self, arguments):
         content = None
         if arguments.exists():
-            with arguments.open("r") as f:
+            with arguments.open("r", encoding="utf-8") as f:
                 content = f.read()
         return content
-    
+
     def _store_args(self, arguments, bazel_args):
-        with arguments.open("w+") as f:
+        with arguments.open("w+", encoding="utf-8") as f:
             f.write(" ".join(bazel_args))
 
     def _check_args(self, build_path, bazel_args):
@@ -137,7 +133,7 @@ class BazelBuildTask(BazelBaseTask):
                     self._store_args(arguments, bazel_args)
         return bazel_args
 
-    #def _build(self, args, pkg_desc):
+    # def _build(self, args, pkg_desc):
     #    bazel_args = args.builder_args
     #    pkg_path = Path(pkg_desc.path)
     #    build_path = pkg_path / "dev" / "bazel"
@@ -147,7 +143,7 @@ class BazelBuildTask(BazelBaseTask):
 
     #    os.chdir(pkg_desc)
     #    logger.info("Build package {}...".format(pkg_desc.name))
-        
+
     #    bazel_args = self._check_args(build_path, bazel_args)
 
     #    bazel_args = self._add_basic_args(bazel_args, nproc)
@@ -165,11 +161,18 @@ class BazelBuildTask(BazelBaseTask):
         # ld.gold cannot load ldconfig cache
         # thus we just add all linkopt to build target
         lib_paths = []
-        for root, dirs, _ in os.walk(
-            os.path.join(get_config("base", "apollo_root"),
-                get_config("base", "library_path_prefix"))):
-            for d in dirs:
-                lib_paths.append(os.path.join(root, d))
+        lib_path_prefix = os.path.join(
+            get_config("base", "apollo_root"),
+            get_config("base", "library_path_prefix"))
+        for d in os.listdir(lib_path_prefix):
+            if d.startswith("3rd-"):
+                lib_paths.append(os.path.join(lib_path_prefix, d))
+        lib_paths.sort()
+        # for root, dirs, _ in os.walk(
+        #     os.path.join(get_config("base", "apollo_root"),
+        #         get_config("base", "library_path_prefix"))):
+        #     for d in dirs:
+        #         lib_paths.append(os.path.join(root, d))
         lib_paths.reverse()
         
         host_link_opt = []
@@ -181,7 +184,7 @@ class BazelBuildTask(BazelBaseTask):
             
         host_link_opt += ['--host_linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
         host_link_opt += ['--linkopt="-L{}"'.format(lib_path) for lib_path in lib_paths]
-         
+
         bazel_args = args.builder_args + host_link_opt
         known_options = args.known_options
 
@@ -204,15 +207,15 @@ class BazelBuildTask(BazelBaseTask):
         os.chdir(str(workspace_wrapper))
 
         logger.info("Build and install package {}...".format(pkg_desc.name))
-        
+
         # bazel_args = self._check_args(build_path, bazel_args)
         args_str = self._add_basic_args(bazel_args, known_options, nproc, args.memories, args.jobs)
-        
+
         cmd_install_src = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
-            ["{}:install_src".format(pkg_desc.real_src)] + ["--", install_parm]
+                          ["{}:install_src".format(pkg_desc.real_src)] + ["--", install_parm]
 
         cmd_install = [BAZEL_EXECUTABLE] + ["run"] + args_str + \
-            ["{}:install".format(pkg_desc.real_src)] + ["--", install_parm]
+                      ["{}:install".format(pkg_desc.real_src)] + ["--", install_parm]
 
         ret = subprocess.run(" ".join(cmd_install_src), stderr=subprocess.STDOUT, shell=True)
         if ret.returncode != 0:
@@ -233,6 +236,8 @@ class BazelBuildTask(BazelBaseTask):
                 exit=False
             )
             return ret.returncode
+        # subprocess.run(
+        #     "ps -ef | grep bazel | awk '{print $2}' | xargs kill >/dev/null 2>&2", shell=True)
         
         os.chdir(cwd)
         return 0

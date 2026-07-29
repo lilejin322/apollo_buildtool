@@ -50,18 +50,26 @@ class Action(core.action.Action):
             ErrCode.send_error(
                 ErrCode.FileIoErr,
                 ["Invalid release file input"])
-        ret = subprocess.run(" ".join([tar, "-xzvf", f, ">/dev/null", "2>&1"]), shell=True)
+        os.makedirs(release_path, exist_ok=True)
+        ret = subprocess.run(" ".join(
+            [tar, "-xzvf", f, "-C", release_path, ">/dev/null", "2>&1"]), shell=True)
         if ret.returncode != 0:
             ErrCode.send_error(
                 ErrCode.FileIoErr,
                 ["Decompress release file failed. Make sure the file is valid"])
         logger.info("Install the release file, which may require an Internet connection")
+        ret = subprocess.run("mv -f ./{}/.workspace.json ./".format(release_path), shell=True)
+        if ret.returncode != 0:
+            ErrCode.send_error(
+                ErrCode.FileIoErr,
+                ["Loading .workspace.json failed. Make sure the file is valid"])
         ret = subprocess.run(" ".join(
             ["sudo", apt, "install", "-y", "./{}/*.deb".format(release_path)]), shell=True)
         if ret.returncode != 0:
             ErrCode.send_error(
                 ErrCode.FileIoErr,
                 ["Install release file failed. Make sure the file is valid"])
+
 
         shutil.rmtree(release_path)
 

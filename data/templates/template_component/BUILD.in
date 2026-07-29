@@ -1,7 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//tools:apollo.bzl", "cyber_plugin_description")
-load("//tools:apollo_package.bzl", "apollo_cc_library", "apollo_package", "apollo_plugin")
-load("//tools/proto:proto.bzl", "proto_library")
+load("//tools:apollo_package.bzl", "apollo_cc_library", "apollo_cc_binary", "apollo_package", "apollo_component")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
@@ -15,15 +12,8 @@ filegroup(
     ]),
 )
 
-cc_binary(
+apollo_component(
     name = "lib{{ target_name }}_component.so",
-    linkshared = True,
-    linkstatic = True,
-    deps = [":{{ target_name }}_component"],
-)
-
-cc_library(
-    name = "{{ target_name }}_component",
     srcs = [
         "{{ target_name }}.cc",
     ],
@@ -37,7 +27,6 @@ cc_library(
 {% for dep in build_dependencies %}        "{{ dep }}",
 {% endfor %}
     ],
-    alwayslink = True,
 )
 
 apollo_package()

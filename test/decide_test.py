@@ -96,7 +96,7 @@ class TestCase(unittest.TestCase):
     def test_version_decide(self, mock_acquire_cyberfile):
         mock_acquire_cyberfile.side_effect=return_logic
 
-        version_decide = DeciderInterface()
+        version_decide = DeciderInterface(self.repositories)
         ider = PackageIdentification()
         root_target = PackageDesc()
 
