@@ -423,7 +423,7 @@ def _install_package_before_proceed(pkg_desc: PackageDesc, **kwargs):
                 _request_apollo_package_in_playgroud(pkg_desc)
                 _install_apollo_package_in_playgroud(pkg_desc)
             else:
-                if "latest_3rd_pkg" in kwargs and kwargs["latest_3rd_pkg"] == True:
+                if "latest_3rd_pkg" in kwargs and kwargs["latest_3rd_pkg"] is True:
                     logger.info("update {} to version {}...".format(pkg_desc.name, pkg_desc.version))
                     _request_apollo_package_in_playgroud(pkg_desc)
                     _install_apollo_package_in_playgroud(pkg_desc)
