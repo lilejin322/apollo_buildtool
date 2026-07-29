@@ -259,10 +259,13 @@ class Action(object):
             self.metacli = MetaDataCli()
             if platform.machine() == "aarch64":
                 self.metacli.run([Repository("apollo-core-arm", "latest")])
+                latest = self.metacli.get_latest_version("cyber").__str__()
+                self.repositories.append(Repository("apollo-core-arm", latest))
             else:
-                self.metacli.run([Repository("apollo-core", "latest")]) 
-            latest = self.metacli.get_latest_version("cyber").__str__()
-            self.repositories.append(Repository("apollo-core", latest))
+                self.metacli.run([Repository("apollo-core", "latest")])
+                latest = self.metacli.get_latest_version("cyber").__str__()
+                self.repositories.append(Repository("apollo-core", latest))
+            
             # with open(os.path.join(workspace, ".workspace.json"), "w+") as f:
             #     f.write(json.dumps({"apollo-core": {"version": latest}}))
 
