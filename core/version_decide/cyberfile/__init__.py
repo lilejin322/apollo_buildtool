@@ -16,7 +16,6 @@
 ###############################################################################
 """request metadata"""
 import os
-import requests
 import xml.etree.ElementTree as ET
 
 from pkg_resources import parse_version
@@ -51,9 +50,6 @@ class MetaDataCli(object):
         self.procedure = Procedure()
         self.online = self.procedure.get_network_status()
 
-    def set_offline(self):
-        self.online = False
-
     def get_recached_flags(self):
         """confirm it's recached or not"""
         return self.recache
@@ -67,7 +63,6 @@ class MetaDataCli(object):
 
     def _init_metadata(self):
         raw_metadatas = None
-        timeout_offline = False
 
         if self.online:
             arch = get_arch()
@@ -79,58 +74,49 @@ class MetaDataCli(object):
                 arch, codename
             )
             request = RequestBase()
-            logger.info(
-                "Download the latest package index to construct a local database...")
-            try:
-                meta_resp = request.get(
-                    url=metadata_request_url, headers=self.headers, timeout=30)
-            except requests.exceptions.Timeout:
-                logger.warning("Download package index timed out! Try using local cache")
-                timeout_offline = True
+            meta_resp = request.get(
+                url=metadata_request_url, headers=self.headers)
+            if meta_resp.status_code != 200:
+                ErrCode.send_error(ErrCode.NetworkIoError, [
+                    "Request packages metadata failed! Status code={}".format(
+                        meta_resp.status_code)])
+            meta_resp_json = meta_resp.json()
+            # assume return {
+            #     "core": {"packages": packages_content, "cyberfiles": cyberfile_content},
+            #     "universe": {"packages": packages_content, "cyberfiles": cyberfile_content}
+            # }
+            for repo in meta_resp_json:
+                prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), repo)
+                os.makedirs(prefix, exist_ok=True)
+                packages_path = os.path.join(prefix, self.offline_packages_filename)
+                cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
+                if "packages" not in meta_resp_json[repo] or \
+                        "cyberfiles" not in meta_resp_json[repo]:
+                    if not self.ignore_error:
+                        ErrCode.send_error(ErrCode.NetworkIoError,
+                                           ["Unauthorized access repository {}".format(repo)],
+                                           ["Please use login command to access this repository"])
+                    else:
+                        exit(0)
 
-            if not timeout_offline:   
-                if meta_resp.status_code != 200:
-                    ErrCode.send_error(ErrCode.NetworkIoError, [
-                        "Request package index failed! Status code={}".format(
-                            meta_resp.status_code)])
-                meta_resp_json = meta_resp.json()
-                # assume return {
-                #     "core": {"packages": packages_content, "cyberfiles": cyberfile_content},
-                #     "universe": {"packages": packages_content, "cyberfiles": cyberfile_content}
-                # }
-                for repo in meta_resp_json:
-                    prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), repo)
-                    os.makedirs(prefix, exist_ok=True)
-                    packages_path = os.path.join(prefix, self.offline_packages_filename)
-                    cyberfiles_path = os.path.join(prefix, self.offline_cyberfile_cache_filename)
-                    if "packages" not in meta_resp_json[repo] or \
-                            "cyberfiles" not in meta_resp_json[repo]:
-                        if not self.ignore_error:
-                            ErrCode.send_error(ErrCode.NetworkIoError,
-                                            ["Unauthorized access repository {}".format(repo)],
-                                            ["Please use login command to access this repository"])
-                        else:
-                            exit(0)
-
-                    if not self.recache:
-                        if not os.path.exists(packages_path) or not os.path.exists(packages_path):
+                if not self.recache:
+                    if not os.path.exists(packages_path) or not os.path.exists(packages_path):
+                        self.recache = True
+                    else:
+                        with open(packages_path, "r") as f:
+                            cached_packages = f.read()
+                        with open(cyberfiles_path, "r") as f:
+                            cached_cyberfiles = f.read()
+                        if cached_packages != meta_resp_json[repo]["packages"] or \
+                                cached_cyberfiles != meta_resp_json[repo]["cyberfiles"]:
                             self.recache = True
-                        else:
-                            with open(packages_path, "r") as f:
-                                cached_packages = f.read()
-                            with open(cyberfiles_path, "r") as f:
-                                cached_cyberfiles = f.read()
-                            if cached_packages != meta_resp_json[repo]["packages"] or \
-                                    cached_cyberfiles != meta_resp_json[repo]["cyberfiles"]:
-                                self.recache = True
 
-                    with open(packages_path, "w+") as f:
-                        f.write(meta_resp_json[repo]["packages"])
+                with open(packages_path, "w+") as f:
+                    f.write(meta_resp_json[repo]["packages"])
 
-                    with open(cyberfiles_path, "w+") as f:
-                        f.write(meta_resp_json[repo]["cyberfiles"])
-
-        if not self.online or timeout_offline:
+                with open(cyberfiles_path, "w+") as f:
+                    f.write(meta_resp_json[repo]["cyberfiles"])
+        else:
             for repo in self.repositories:
                 prefix = os.path.join(get_config("cache", "offline_metadata_prefix"), repo.name)
                 packages_path = os.path.join(prefix, self.offline_packages_filename)
@@ -138,8 +124,7 @@ class MetaDataCli(object):
 
                 if not os.path.exists(packages_path) or not os.path.exists(cyberfiles_path):
                     ErrCode.send_error(ErrCode.FileIoErr,
-                            ["Local package index database is not initialized"],
-                            ["Please make sure that you are connected to the Internet"])
+                                       ["please use offline mode after initialize metadata"])
 
         for repo in self.repositories:
             self.raw_metadata_pool[repo.name] = dict()
@@ -295,7 +280,7 @@ class MetaDataCli(object):
             merge_content = remote_cyberfile_content + "\n" + local_cyberfile_content
             self.cyberfile_source[ns][name] = "<root>\n" + merge_content + "\n</root>"
 
-        # logger.info("update complete")
+        logger.info("update complete")
 
     def get_all_package_name(self):
         pkg_names = []
@@ -408,4 +393,3 @@ class MetaDataCli(object):
         if apollo_prefix not in name:
             return "{}{}".format(apollo_prefix, name)
         return name
-
