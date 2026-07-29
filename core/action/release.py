@@ -168,14 +168,11 @@ class Action(core.action.Action):
             if cyberfile is not None:
                 # apollo package
                 version = None
-                # In release, user want to release his package to the first repository
-                # even if the version is matched with the following repositories
-                # so we only check the version of first repository
-                
-                # for repository in self.repositories:
-                if self.decider.metadata_cli.valid_repository_check(package, \
-                        self.repositories[0].version, self.repositories[0].name):
-                    version = self.repositories[0].version
+                for repository in self.repositories:
+                    if self.decider.metadata_cli.valid_repository_check(package, \
+                            repository.version, repository.name):
+                        version = repository.version
+                        break
                 if version is None:
                     # user defined repository version is not matched with remote
                     # may caused by swtching repository version after building source package
