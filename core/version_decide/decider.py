@@ -76,7 +76,7 @@ class PackageSource(BasePackageSource):
             self._packages[name] = {}
 
         if version in self._packages[name]:
-            raise ValueError("{} ({}) already exists".format(name, version))
+            return
 
         dependencies = []
         for dep_name, spec in deps.items():

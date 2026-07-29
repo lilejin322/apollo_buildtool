@@ -1,6 +1,6 @@
 <package format="2">
   <name>buildtool</name>
-  <version>9.0.0-alpha3-r1</version>
+  <version>9.0.0-alpha3-r2</version>
   <description>
     Apollo package buildtool.
   </description>

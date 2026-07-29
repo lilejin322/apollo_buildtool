@@ -442,7 +442,8 @@ class DebBuilder(object):
 
         os.makedirs(deb_conf.name_ver + "/DEBIAN", exist_ok=True)
         for f in os.listdir(deb_conf.name_ver + "/DEBIAN"):
-            Path(f).unlink()
+            if os.path.exists(f)
+                Path(f).unlink()
         os.chdir(deb_conf.name_ver)
         prepare_path = os.getcwd()
 
