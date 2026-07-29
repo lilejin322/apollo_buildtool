@@ -231,14 +231,20 @@ def _install_apollo_package_in_playgroud(pkg_desc):
         p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
         if p.returncode != 0:
             ErrCode.send_error(ErrCode.PackageAttrErr,
-                ["delete {} error, causing by invalid rm scripts, please contact apollo maintainers".format(pkg_desc.name)],
+                [
+                    "delete {} error, causing by invalid rm scripts".format(pkg_desc.name),
+                    "please contact apollo maintainers"
+                ],
             )
     if os.path.exists(postrm):
         cmd = "sudo {}".format(postrm)
         p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True) 
         if p.returncode != 0:
             ErrCode.send_error(ErrCode.PackageAttrErr,
-                ["delete {} error, causing by invalid rm scripts, please contact apollo maintainers".format(pkg_desc.name)],
+                [
+                    "delete {} error, causing by invalid rm scripts".format(pkg_desc.name),
+                    "please contact apollo maintainers"
+                ],
             )
 
     cmd = "sudo {}".format(preinst_in_package)
