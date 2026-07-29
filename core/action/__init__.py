@@ -258,7 +258,7 @@ class Action(object):
         else:
             self.metacli = MetaDataCli()
             if platform.machine() == "aarch64":
-                self.metacli.run([Repository("apoollo-arm-universe", "latest")])
+                self.metacli.run([Repository("apollo-core-arm", "latest")])
             else:
                 self.metacli.run([Repository("apollo-core", "latest")]) 
             latest = self.metacli.get_latest_version("cyber").__str__()
