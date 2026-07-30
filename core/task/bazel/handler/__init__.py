@@ -176,10 +176,15 @@ class Procedure(object):
 
     def _check_network(self):
         login_api = get_config("api", "login")
-        cmd = ["curl", "--max-time", "5", login_api, ">/dev/null 2>&1"]
-        if subprocess.call(" ".join(cmd), shell=True) != 0:
-            logger.warning("Can't connect with the server, use offline mode")
-            self.online = False
+        cmd = ["curl", "--max-time", "15", login_api, ">/dev/null 2>&1"]
+        max_attempts = 7
+        for attempt in range(1, max_attempts + 1):
+            if subprocess.call(" ".join(cmd), shell=True) == 0:
+                return
+            logger.warning(
+                "Network check attempt {}/{} failed".format(attempt, max_attempts))
+        logger.warning("Can't connect with the server, use offline mode")
+        self.online = False
 
     def get_network_status(self):
         return self.online
